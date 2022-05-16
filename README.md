@@ -2,7 +2,7 @@
 
 This is the sketch for the Dome Controller Interface Board. It depends on the Adafruit_SSD1306, Adafruit_GFX, and the Reeltwo library. You can download the latest release of the Reeltwo library here: https://github.com/reeltwo/Reeltwo/releases
 
-[![Uppity Spinner](https://i.vimeocdn.com/video/1432876855-e1a8651d23573b8ac84be2ccedc1b2b981c0a1533f0eff7b665f34ed3dbf8920-d)](https://vimeo.com/708875980)
+[![Uppity Spinner](https://i.vimeocdn.com/video/1432876855-e1a8651d23573b8ac84be2ccedc1b2b981c0a1533f0eff7b665f34ed3dbf8920-d_500x800)](https://vimeo.com/708875980)
 
 Configuration can happen through either the LCD display using the encoder wheel or via serial.
 
