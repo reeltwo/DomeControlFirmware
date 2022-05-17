@@ -36,7 +36,7 @@
 ///////////////////////////////////
 // CONTROL BOARD PIN OUT
 ///////////////////////////////////
-// Only change if you using a
+// Only change if you are using a
 // different PCB
 ///////////////////////////////////
 
@@ -1409,28 +1409,19 @@ void loop()
     }
     if (sSerialMotorActivity)
     {
-        static float sLastMotorValuePrinted;
-        if (sLastMotorValue != sLastMotorValuePrinted)
-            sLastMotorValuePrinted = sLastMotorValue;
         sDomeDrive.driveDome(sLastMotorValue);
     }
 
     if (sSettings.fPWMInput)
     {
-        static bool alive;
-        if (pulseInput.isActive())
+        if (pulseInput.becameActive())
         {
-            if (!alive)
-            {
-                DEBUG_PRINTLN("PWM Input Active");
-                alive = true;
-            }
+            DEBUG_PRINTLN("PWM Input Active");
         }
-        else if (alive)
+        else if (pulseInput.becameInactive())
         {
             DEBUG_PRINTLN("No PWM Input");
             sDomeDrive.driveDome(0);
-            alive = false;
         }
     }
 }
