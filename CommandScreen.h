@@ -380,6 +380,8 @@ void CommandScreenHandler::process()
 {
     if (!fEnabled)
         return;
+    if (fCurrentScreen == nullptr)
+        fCurrentScreen = findScreen(ScreenID(0));
     clearContext();
     CommandScreen* current = fCurrentScreen;
     if (fLastScreen != current)
@@ -387,6 +389,7 @@ void CommandScreenHandler::process()
         // Screen was changed
         if (current != nullptr)
         {
+            DEBUG_PRINT("SCREEN: "); DEBUG_PRINTLN(current->fID);
             current->fLastTag = 0;
             current->init();
         }
@@ -470,6 +473,4 @@ void CommandScreenHandler::append(CommandScreen* screen)
     if (fTail != nullptr)
         fTail->fNext = screen;
     fTail = screen;
-    if (fCurrentScreen == nullptr)
-        fCurrentScreen = screen;
 }

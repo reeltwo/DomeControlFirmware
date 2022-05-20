@@ -11,6 +11,34 @@
 #undef  USE_DOME_DEBUG          // Define for dome motor specific debug
 #undef  USE_DOME_SENSOR_DEBUG   // Define for dome sensor ring specific debug
 
+#define DEFAULT_HOME_POSITION           0
+#define DEFAULT_SABER_BAUD              9600
+#define DEFAULT_MARC_BAUD               9600
+#define DEFAULT_PACKET_SERIAL_INPUT     true
+#define DEFAULT_PACKET_SERIAL_OUTPUT    true
+#define DEFAULT_PWM_INPUT               false
+#define DEFAULT_PWM_OUTPUT              false
+#define DEFAULT_MAX_SPEED               50
+#define DEFAULT_RANDOM_MODE             false
+#define DEFAULT_HOME_MODE               false
+#define DEFAULT_SPEED_SCALING           false
+#define DEFAULT_INVERTED                false
+#define DEFAULT_PWM_MIN_PULSE           1000
+#define DEFAULT_PWM_MAX_PULSE           2000
+#define DEFAULT_PWM_NEUTRAL_PULSE       1500
+#define DEFAULT_PWM_DEADBAND            5
+#define DEFAULT_ACCELERATION_SCALE      100
+#define DEFAULT_DECELERATION_SCALE      20
+#define DEFAULT_DOME_MIN_DELAY          6
+#define DEFAULT_DOME_MAX_DELAY          8
+#define DEFAULT_DOME_SEEK_LEFT          80
+#define DEFAULT_DOME_SEEK_RIGHT         80
+#define DEFAULT_DOME_FUDGE              5
+#define DEFAULT_DOME_SPEED_HOME         40
+#define DEFAULT_DOME_SPEED_SEEK         30
+#define DEFAULT_DOME_SPEED_MIN          15
+#define DEFAULT_DIGITAL_PINS            0
+
 #define MAX_SPEED               100
 #define MAX_SPEED_F             float(MAX_SPEED)
 #define MAX_FUDGE_FACTOR        20
@@ -33,10 +61,14 @@
 #define CONSOLE_BUFFER_SIZE     300
 #define COMMAND_BUFFER_SIZE     256
 
+#define DOME_SENSOR_SERIAL_BAUD 57600
+
+#define PACKET_SERIAL_TIMEOUT   1500
+
 ///////////////////////////////////
 // CONTROL BOARD PIN OUT
 ///////////////////////////////////
-// Only change if you are using a
+// Only change if you using a
 // different PCB
 ///////////////////////////////////
 
@@ -77,6 +109,7 @@
 #include "ReelTwo.h"
 #include "core/AnimatedEvent.h"
 #include "core/AnalogMonitor.h"
+#include "core/StringUtils.h"
 #include "core/EEPROMSettings.h"
 #include "drive/DomeSensorSerialPosition.h"
 #include "drive/DomeSensorAnalogPosition.h"
@@ -193,33 +226,33 @@ struct Channel
 
 struct DomeControllerSettings
 {
-    uint16_t fHomePosition = 0;
-    uint16_t fSaberBaudRate = 9600;  // baud rate (default 9600)
-    uint16_t fMarcBaudRate = 9600;   // baud rate (default 9600)
-    bool fPacketSerialInput = false; // true if polling RXD2 for Saber input
-    bool fPacketSerialOutput = true; // true if driving dome via packet serial
-    bool fPWMInput = true;           // true if polling PWM pin 2 for Pulse input
-    bool fPWMOutput = false;         // true if driving dome via PWM
-    uint8_t fMaxSpeed = 50;          // 0-MAX_SPEED (default 50)
-    bool fRandomMode = false;
-    bool fHomeMode = false;
-    bool fSpeedScaling = false;
-    bool fInverted = false;
-    uint16_t fPWMMinPulse = 1000;
-    uint16_t fPWMMaxPulse = 2000;
-    uint16_t fPWMNeutralPulse = 1500;
-    uint8_t fPWMDeadbandPercent = 5;
-    uint8_t fAccScale = 100;
-    uint8_t fDecScale = 20; 
-    uint8_t fDomeMinDelay = 6;
-    uint8_t fDomeMaxDelay = 8;
-    uint8_t fDomeSeekLeft = 80;
-    uint8_t fDomeSeekRight = 80;
-    uint8_t fDomeFudge = 5;
-    uint8_t fDomeSpeedHome = 40;
-    uint8_t fDomeSpeedSeek = 30;
-    uint8_t fDomeSpeedMin = 15;
-    uint8_t fDigitalPins = 0;
+    uint16_t fHomePosition = DEFAULT_HOME_POSITION;
+    uint32_t fSaberBaudRate = DEFAULT_SABER_BAUD;
+    uint32_t fMarcBaudRate = DEFAULT_MARC_BAUD;
+    bool fPacketSerialInput = DEFAULT_PACKET_SERIAL_INPUT;
+    bool fPacketSerialOutput = DEFAULT_PACKET_SERIAL_OUTPUT;
+    bool fPWMInput = DEFAULT_PWM_INPUT;
+    bool fPWMOutput = DEFAULT_PWM_OUTPUT;
+    uint8_t fMaxSpeed = DEFAULT_MAX_SPEED;
+    bool fRandomMode = DEFAULT_RANDOM_MODE;
+    bool fHomeMode = DEFAULT_HOME_MODE;
+    bool fSpeedScaling = DEFAULT_SPEED_SCALING;
+    bool fInverted = DEFAULT_INVERTED;
+    uint16_t fPWMMinPulse = DEFAULT_PWM_MIN_PULSE;
+    uint16_t fPWMMaxPulse = DEFAULT_PWM_MAX_PULSE;
+    uint16_t fPWMNeutralPulse = DEFAULT_PWM_NEUTRAL_PULSE;
+    uint8_t fPWMDeadbandPercent = DEFAULT_PWM_DEADBAND;
+    uint8_t fAccScale = DEFAULT_ACCELERATION_SCALE;
+    uint8_t fDecScale = DEFAULT_DECELERATION_SCALE; 
+    uint8_t fDomeMinDelay = DEFAULT_DOME_MIN_DELAY;
+    uint8_t fDomeMaxDelay = DEFAULT_DOME_MAX_DELAY;
+    uint8_t fDomeSeekLeft = DEFAULT_DOME_SEEK_LEFT;
+    uint8_t fDomeSeekRight = DEFAULT_DOME_SEEK_RIGHT;
+    uint8_t fDomeFudge = DEFAULT_DOME_FUDGE;
+    uint8_t fDomeSpeedHome = DEFAULT_DOME_SPEED_HOME;
+    uint8_t fDomeSpeedSeek = DEFAULT_DOME_SPEED_SEEK;
+    uint8_t fDomeSpeedMin = DEFAULT_DOME_SPEED_MIN;
+    uint8_t fDigitalPins = DEFAULT_DIGITAL_PINS;
 
 #ifdef USE_SERVOS
     Channel fServos[9] = {
@@ -341,7 +374,7 @@ static void restoreDomeSettings()
 void setup()
 {
     REELTWO_READY();
-    DOME_SENSOR_SERIAL.begin(57600);
+    DOME_SENSOR_SERIAL.begin(DOME_SENSOR_SERIAL_BAUD);
 
     Serial.print(F("Droid Dome Controller - "));
     Serial.println(F(__DATE__));
@@ -490,55 +523,6 @@ static void resetSerialCommand()
     sNextCommand = false;
     sProcessing = (sCmdBuffer[0] == ':');
     sPos = 0;
-}
-
-int atoi(const char* cmd, int numdigits)
-{
-    int result = 0;
-    for (int i = 0; i < numdigits; i++)
-        result = result*10 + (cmd[i]-'0');
-    return result;
-}
-
-int32_t strtol(const char* cmd, const char** endptr)
-{
-    bool sign = false;
-    int32_t result = 0;
-    if (*cmd == '-')
-    {
-        cmd++;
-        sign = true;
-    }
-    while (isdigit(*cmd))
-    {
-        result = result*10L + (*cmd-'0');
-        cmd++;
-    }
-    *endptr = cmd;
-    return (sign) ? -result : result;
-}
-
-uint32_t strtolu(const char* cmd, const char** endptr)
-{
-    uint32_t result = 0;
-    while (isdigit(*cmd))
-    {
-        result = result*10L + (*cmd-'0');
-        cmd++;
-    }
-    *endptr = cmd;
-    return result;
-}
-
-bool startswith(const char* &cmd, const char* str)
-{
-    size_t len = strlen(str);
-    if (strncmp(cmd, str, strlen(str)) == 0)
-    {
-        cmd += len;
-        return true;
-    }
-    return false;
 }
 
 bool processDomePositionCommand(const char* cmd)
@@ -1401,7 +1385,7 @@ void loop()
             sLastSerialData = millis();
         }
     }
-    if (sSerialMotorActivity && sLastSerialMotorEvent + 1500 < millis())
+    if (sSerialMotorActivity && sLastSerialMotorEvent + PACKET_SERIAL_TIMEOUT < millis())
     {
         DEBUG_PRINTLN("Syren Idle");
         sSerialMotorActivity = false;
@@ -1412,17 +1396,10 @@ void loop()
         sDomeDrive.driveDome(sLastMotorValue);
     }
 
-    if (sSettings.fPWMInput)
+    if (sSettings.fPWMInput && pulseInput.becameInactive())
     {
-        if (pulseInput.becameActive())
-        {
-            DEBUG_PRINTLN("PWM Input Active");
-        }
-        else if (pulseInput.becameInactive())
-        {
-            DEBUG_PRINTLN("No PWM Input");
-            sDomeDrive.driveDome(0);
-        }
+        DEBUG_PRINTLN("No PWM Input");
+        sDomeDrive.driveDome(0);
     }
 }
 #pragma GCC diagnostic pop
