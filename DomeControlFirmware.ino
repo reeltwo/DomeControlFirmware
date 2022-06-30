@@ -111,6 +111,7 @@
 #include "core/AnalogMonitor.h"
 #include "core/StringUtils.h"
 #include "core/EEPROMSettings.h"
+#include "core/PinManager.h"
 #include "drive/DomeSensorSerialPosition.h"
 #include "drive/DomeSensorAnalogPosition.h"
 #include "drive/SerialConsoleController.h"
@@ -129,6 +130,10 @@
 
 ///////////////////////////////////
 
+PinManager sPinManager;
+
+///////////////////////////////////
+
 #ifdef USE_SCREEN
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
@@ -140,7 +145,7 @@
 #include "CommandScreen.h"
 #include "CommandScreenHandlerSSD1306.h"
 
-CommandScreenHandlerSSD1306 sDisplay;
+CommandScreenHandlerSSD1306 sDisplay(sPinManager);
 
 #endif
 

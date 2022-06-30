@@ -7,9 +7,9 @@
 class CommandScreenHandlerSSD1306: public Adafruit_SSD1306, public CommandScreenHandler
 {
 public:
-    CommandScreenHandlerSSD1306() :
+    CommandScreenHandlerSSD1306(PinManager &pinManager) :
         Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1),
-        fDial(PIN_ENCODER_A, PIN_ENCODER_B, BUTTON_UP, BUTTON_LEFT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_IN)
+        fDial(pinManager, PIN_ENCODER_A, PIN_ENCODER_B, BUTTON_UP, BUTTON_LEFT, BUTTON_DOWN, BUTTON_RIGHT, BUTTON_IN)
     {
     }
 
