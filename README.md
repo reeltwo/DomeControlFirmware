@@ -20,6 +20,12 @@ List all settings in EEPROM
 
     #DPCONFIG
 
+`#DPSETUP`:
+Inital setup. Will figure out minimum speed and if inversion is needed.
+*Examples*:
+
+    #DPSETUP
+
 `#DPL`:
 List all stored sequences
 *Examples*:
@@ -32,11 +38,11 @@ Delete numbered sequence from EEPROM
 
     #PD0 (delete sequence 0)
 
-`#DPSPEED`[number]:
-Set dome speed 0-100 (default 50)
+`#DPMAXSPEED`[number]:
+Set dome max speed 0-100 (default 50)
 *Examples*:
 
-    #DPSPEED50 (set dome speed to 50)
+    #DPMAXSPEED50 (set dome speed to 50)
 
 `#DPHOMESPEED`[number]:
 Set dome home mode speed 0-100 (default 40)
@@ -48,7 +54,13 @@ Set dome home mode speed 0-100 (default 40)
 Set dome random mode seek speed 0-100 (default 30)
 *Examples*:
 
-    #DPSEEKSPEED35 (set dome seek speed to 30)
+    #DPSEEKSPEED35 (set dome seek speed to 35)
+
+`#DPTARGETSPEED`[number]:
+Set dome target mode seek speed 0-100 (default 100)
+*Examples*:
+
+    #DPTARGETSPEED65 (set dome target speed to 65)
 
 `#DPMINSPEED`[number]:
 Set dome minimum speed 0-100 (default 15)
@@ -80,6 +92,30 @@ Set random seek mode maximum delay in seconds (default 8)
 
     #DPSEEKMAX8 (set maximum random mode delay to 8 seconds)
 
+`#DPHOMEMIN`[number]:
+Set home mode minimum delay in seconds (default 6)
+*Examples*:
+
+    #DPHOMEMIN6 (set minimum home mode delay to 6 seconds)
+
+`#DPHOMEMAX`[number]:
+Set home mode maximum delay in seconds (default 8)
+*Examples*:
+
+    #DPHOMEMAX8 (set maximum home mode delay to 8 seconds)
+
+`#DPTARGETMIN`[number]:
+Set target mode minimum delay in seconds (default 0)
+*Examples*:
+
+    #DPTARGETMIN6 (set minimum target mode delay to 6 seconds)
+
+`#DPTARGETMAX`[number]:
+Set target seek mode maximum delay in seconds (default 1)
+*Examples*:
+
+    #DPTARGETMAX8 (set maximum random mode delay to 8 seconds)
+
 `#DPFUDGE`[number]:
 Set dome target position tolerance to 0-20 degrees (default 5)
 *Examples*:
@@ -87,10 +123,11 @@ Set dome target position tolerance to 0-20 degrees (default 5)
     #DPFUDGE5 (set dome position tolerance to within 5 degrees)
 
 `#DPHOMEPOS`[number]:
-Set new dome home position 0-359 degrees (default 0)
+Set new dome home position to the current position. Or optionally specify the home position in 0-359 degrees
 *Examples*:
 
-    #DPHOMEPOS10 (set new dome home position)
+    #DPHOMEPOS (set new dome home position to the current position)
+    #DPHOMEPOS10 (set new dome home position to 10)
 
 `#DPHOME`[number]:
 Enable/disable dome home mode 0 or 1 (default disabled 0)
@@ -131,6 +168,19 @@ Enable/disable dome motor inversion 0 or 1 (default disabled 0)
 
     #DPINVERT0 (disable dome motor inversion)
     #DPINVERT1 (enable dome motor inversion)
+
+`#DPAUTOSAFETY`[number]:
+Enable/disable automatic dome movement safety check 0 or 1 (default disabled 0)
+*Examples*:
+
+    #DPAUTOSAFETY0 (disable automatic dome movement safety check)
+    #DPAUTOSAFETY1 (enable automatic dome movement safety check)
+
+`#DPTIMEOUT`[number]:
+Set movement timeout delay in seconds. If dome has not changed position before the timeout expires the movement is cancelled (default 5 seconds)
+*Examples*:
+
+    #DPTIMEOUT5 (set timeout value to 5 seconds)
 
 `#DPSERIALIN`[number]:
 Enable/disable packet serial input 0 or 1 (default enabled 1)
@@ -207,19 +257,21 @@ Would turn the dome to 90 degrees absolute. Wait 2 seconds. Return dome to home 
 Sequences can be stored using #DPS
 *Examples*:
 
-    #DPS0:H:A90:W2:A270:W2:H
+    #DPS0:H:R100:WR10,20:R-50:WR10,20:WR10,20:R-50:WR10,20:H
+    #DPS1:H:D-90:D180:H
 
 ### Wait number of seconds
 `W`[R]seconds:
 Wait for specified number of seconds. If 'R' is specified it will randomize the wait time in the range of 1..seconds. 'seconds' is a number between 1 and 600.
 *Examples*:
 
-	:DPW2    (wait 2 seconds before executing next sequence)
-	:DPWR    (wait random 1-6 seconds)
-	:DPWR10  (wait random 1-10 seconds)
+	:DPW2      (wait 2 seconds before executing next sequence)
+	:DPWR      (wait random 1-6 seconds)
+	:DPWR10    (wait random 1-10 seconds)
+    :DPWR10,20 (wait random 10-20 seconds)
 
 ### Home
-`H`[speed]:
+`H`[R][speed]:
 Rotates the dome into the home position.
 *Examples*:
 
@@ -232,7 +284,7 @@ Rotate dome random relative degrees
 
 	:DPDR
 
-`D`[degrees]:
+`A`[R][,speed][,maxspeed]:
 Rotate dome relative degrees positive for counter clockwise and negative for clockwise
 *Examples*:
 
