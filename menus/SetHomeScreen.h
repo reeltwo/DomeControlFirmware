@@ -13,7 +13,7 @@ public:
 
     virtual void buttonInReleased() override
     {
-        uint16_t homePosition = sDomePosition.getDomePosition();
+        uint16_t homePosition = 160;//sDomePosition.getDomePosition();
         if (sSettings.fHomePosition != homePosition)
         {
             sSettings.fHomePosition = homePosition;

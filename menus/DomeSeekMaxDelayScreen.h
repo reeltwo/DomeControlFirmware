@@ -15,17 +15,17 @@ public:
 protected:
     virtual unsigned getValue() override
     {
-        return sDomePosition.getDomeMaxDelay();
+        return sSettings.fDomeSeekMaxDelay;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sDomePosition.setDomeMaxDelay(newValue);
+        sSettings.fDomeSeekMaxDelay = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fDomeMaxDelay = newValue;
+        sSettings.fDomeSeekMaxDelay = newValue;
         restoreDomeSettings();
         sSettings.write();
     }

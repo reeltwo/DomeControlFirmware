@@ -1,32 +1,31 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Specify minimum delay in seconds for random seek left/right mode
-// Range is 0 - MAX_SEEK_DELAY (255)
+// Enable/disable dome motor inversion
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class DomeSeekMinDelayScreen : public UnsignedValueScreen
+class SetAutoSafetyScreen : public ChoiceStrArrayScreen
 {
 public:
-    DomeSeekMinDelayScreen(ScreenID id = kDomeSeekMinDelayScreen) :
-        UnsignedValueScreen(id, MAX_SEEK_DELAY)
-    {}
+    SetAutoSafetyScreen(ScreenID id = kSetAutoSafetyScreen) :
+        ChoiceStrArrayScreen(id, sOnOffStrings, sBooleanValues, SizeOfArray(sBooleanValues))
+    {
+    }
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fDomeSeekMinDelay;
+        return sSettings.fAutoSafety;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fDomeSeekMinDelay = newValue;
+        sSettings.fAutoSafety = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fDomeSeekMinDelay = newValue;
-        restoreDomeSettings();
+        sSettings.fAutoSafety = newValue;
         sSettings.write();
     }
 };
@@ -37,4 +36,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-DomeSeekMinDelayScreen sDomeSeekMinDelayScreen;
+SetAutoSafetyScreen sSetAutoSafetyScreen;

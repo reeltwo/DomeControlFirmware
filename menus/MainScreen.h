@@ -21,8 +21,8 @@ public:
     {
         if (millis() > fLastScreenUpdate + 100)
         {
-            int16_t pos = sDomePosition.getHomeRelativeDomePosition();
-            if (sDomePosition.ready() && pos != fLastPos)
+            int16_t pos = 148;//sDomePosition.getHomeRelativeDomePosition();
+            if (/*sDomePosition.ready() &&*/ pos != fLastPos)
                 fLastPos = pos;
             if (fLastPos != fLastDisplayPos)
             {
@@ -49,13 +49,13 @@ public:
 
     virtual bool isActive() override
     {
-        int16_t pos = sDomePosition.getHomeRelativeDomePosition();
-        if (sDomePosition.ready() && pos != fLastPos)
-        {
-            fLastPos = pos;
+        // int16_t pos = sDomePosition.getHomeRelativeDomePosition();
+        // if (sDomePosition.ready() && pos != fLastPos)
+        // {
+        //     fLastPos = pos;
             return true;
-        }
-        return false;
+        // }
+        // return false;
     }
 
 protected:

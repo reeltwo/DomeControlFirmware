@@ -15,12 +15,12 @@ public:
 protected:
     virtual unsigned getValue() override
     {
-        return sDomePosition.getDomeFudge();
+        return sSettings.fDomeFudge;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sDomePosition.setDomeFudgeFactor(newValue);
+        sSettings.fDomeFudge = newValue;
     }
 
     virtual void saveValue(unsigned newValue)

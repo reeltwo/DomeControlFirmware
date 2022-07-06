@@ -16,16 +16,16 @@ public:
     virtual void init() override
     {
         fLastDisplayPos = -1;
-        sDomePosition.setDomeDefaultMode(DomePosition::kTarget);
-        sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition());
+        // sDomePosition.setDomeDefaultMode(DomePosition::kTarget);
+        // sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition());
     }
 
     virtual void render() override
     {
         if (millis() > fLastScreenUpdate + 100)
         {
-            int16_t pos = sDomePosition.getHomeRelativeDomePosition();
-            if (sDomePosition.ready() && pos != fLastPos)
+            int16_t pos = 160;//sDomePosition.getHomeRelativeDomePosition();
+            if (/*sDomePosition.ready() &&*/ pos != fLastPos)
                 fLastPos = pos;
             if (fLastPos != fLastDisplayPos)
             {
@@ -47,34 +47,34 @@ public:
 
     virtual void buttonUpPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
-        {
-            sDomePosition.setDomeTargetPosition(int(sDomePosition.getDomePosition()) - 90);
-        }
+        // if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        // {
+        //     sDomePosition.setDomeTargetPosition(int(sDomePosition.getDomePosition()) - 90);
+        // }
     }
 
     virtual void buttonLeftPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
-        {
-            sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 10);
-        }
+        // if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        // {
+        //     sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 10);
+        // }
     }
 
     virtual void buttonDownPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
-        {
-            sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 90);
-        }
+        // if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        // {
+        //     sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 90);
+        // }
     }
 
     virtual void buttonRightPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
-        {
-            sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() + 10);
-        }
+        // if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        // {
+        //     sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() + 10);
+        // }
     }
 
     virtual void buttonDial(long newValue, long oldValue) override
@@ -82,7 +82,7 @@ public:
         long target = (long)fmod(newValue, 24) * 15;
         if (target < 0)
             target += 360;
-        sDomePosition.setDomeTargetPosition(target);
+        // sDomePosition.setDomeTargetPosition(target);
     }
 
     virtual void buttonInReleased() override

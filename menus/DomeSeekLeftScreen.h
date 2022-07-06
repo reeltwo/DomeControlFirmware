@@ -15,12 +15,12 @@ public:
 protected:
     virtual unsigned getValue() override
     {
-        return sDomePosition.getDomeSeekLeft();
+        return sSettings.fDomeSeekLeft;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sDomePosition.setDomeSeekLeftDegrees(newValue);
+        sSettings.fDomeSeekLeft = newValue;
     }
 
     virtual void saveValue(unsigned newValue)

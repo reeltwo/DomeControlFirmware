@@ -1,31 +1,31 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Specify minimum delay in seconds for random seek left/right mode
+// Specify maximum delay in seconds for target mode
 // Range is 0 - MAX_SEEK_DELAY (255)
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class DomeSeekMinDelayScreen : public UnsignedValueScreen
+class DomeTargetMaxDelayScreen : public UnsignedValueScreen
 {
 public:
-    DomeSeekMinDelayScreen(ScreenID id = kDomeSeekMinDelayScreen) :
+    DomeTargetMaxDelayScreen(ScreenID id = kDomeTargetMaxDelayScreen) :
         UnsignedValueScreen(id, MAX_SEEK_DELAY)
     {}
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fDomeSeekMinDelay;
+        return sSettings.fDomeTargetMaxDelay;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fDomeSeekMinDelay = newValue;
+        sSettings.fDomeTargetMaxDelay = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fDomeSeekMinDelay = newValue;
+        sSettings.fDomeTargetMaxDelay = newValue;
         restoreDomeSettings();
         sSettings.write();
     }
@@ -37,4 +37,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-DomeSeekMinDelayScreen sDomeSeekMinDelayScreen;
+DomeTargetMaxDelayScreen sDomeTargetMaxDelayScreen;

@@ -45,8 +45,18 @@ public:
     virtual void buttonInReleased() override
     {
         if (fDisplayValue != ~0u)
+        {
             saveValue(fDisplayValue);
-        popScreen();
+            popScreen();
+            if (fDisplayValue != fStartValue)
+            {
+                pushScreen(kSettingsUpdatedScreen);
+            }
+        }
+        else
+        {
+            popScreen();
+        }
     }
 
     virtual void render() override
