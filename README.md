@@ -237,6 +237,8 @@ Store specified sequence (seq) as number in EEPROM.
 	#DPS1:H                       (home)
 	#DPS2:A100                    (move dome to absolute 100 degrees)
 	#DPS3:D50:W2:D-50             (move dome 50 degrees, wait 2 seconds, move -50 degrees)
+    #DPS4:H:R100:WR10,20:R-50:WR10,20:WR10,20:R-50:WR10,20:H  (rotate dome right for 10-20 seconds then left for 10-20 seconds then back home)
+    #DPS5:H:D-90:D180:H           (look left then look right)
 
 Dome commands
 =============
@@ -257,8 +259,8 @@ Would turn the dome to 90 degrees absolute. Wait 2 seconds. Return dome to home 
 Sequences can be stored using #DPS
 *Examples*:
 
-    #DPS0:H:R100:WR10,20:R-50:WR10,20:WR10,20:R-50:WR10,20:H
-    #DPS1:H:D-90:D180:H
+    :DPS1      (play sequence 1)
+    :DPS2      (play sequence 2)
 
 ### Wait number of seconds
 `W`[R]seconds:
