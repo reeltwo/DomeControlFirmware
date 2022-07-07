@@ -225,25 +225,25 @@ public:
         switch (read())
         {
             case kHome:
-                DEBUG_PRINTLN("HOME");
+                DEBUG_PRINTLN(F("HOME"));
                 sDomePosition.setDomeDefaultMode(DomePosition::kHome);
                 break;
             case kEnd:
-                DEBUG_PRINTLN("OFF");
+                DEBUG_PRINTLN(F("OFF"));
                 sDomePosition.setDomeDefaultMode(DomePosition::kOff);
                 disconnect();
                 break;
             case kPageUp:
                 increaseSpeed();
-                DEBUG_PRINT("SPEED: "); DEBUG_PRINTLN(floor(getSpeed()*MAX_SPEED));
+                DEBUG_PRINT(F("SPEED: ")); DEBUG_PRINTLN(floor(getSpeed()*MAX_SPEED));
                 break;
             case kPageDown:
                 decreaseSpeed();
-                DEBUG_PRINT("SPEED: "); DEBUG_PRINTLN(floor(getSpeed()*MAX_SPEED));
+                DEBUG_PRINT(F("SPEED: ")); DEBUG_PRINTLN(floor(getSpeed()*MAX_SPEED));
                 break;
             case 'R':
             case 'r':
-                DEBUG_PRINTLN("RANDOM");
+                DEBUG_PRINTLN(F("RANDOM"));
                 sDomePosition.setDomeDefaultMode(DomePosition::kRandom);
                 break;
         }
@@ -315,7 +315,7 @@ struct DomeControllerSettings
 #endif
 };
 EEPROMSettings<DomeControllerSettings> sSettings;
-bool sDomeHasMovedManually = false;
+bool sDomeHasMovedManually = true;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -413,9 +413,9 @@ static void restoreDomeSettings()
     if (sSettings.fAutoSafety && !sDomeHasMovedManually)
     {
         if (sSettings.fRandomMode)
-            DEBUG_PRINTLN("AUTO SAFETY PREVENTED RANDOM SEEK MODE");
+            DEBUG_PRINTLN(F("AUTO SAFETY PREVENTED RANDOM SEEK MODE"));
         else if (sSettings.fHomeMode)
-            DEBUG_PRINTLN("AUTO SAFETY PREVENTED HOME MODE");
+            DEBUG_PRINTLN(F("AUTO SAFETY PREVENTED HOME MODE"));
     }
     else if (sSettings.fRandomMode)
         sDomePosition.setDomeDefaultMode(DomePosition::kRandom);
@@ -600,10 +600,19 @@ static void runSerialCommand()
 
 static void resetSerialCommand()
 {
+    sWaitTarget = false;
     sWaitNextSerialCommand = 0;
     sNextCommand = false;
     sProcessing = (sCmdBuffer[0] == ':');
     sPos = 0;
+}
+
+static void abortSerialCommand()
+{
+    sBuffer[0] = '\0';
+    sCmdBuffer[0] = '\0';
+    sCmdNextCommand = false;
+    resetSerialCommand();
 }
 
 bool processDomePositionCommand(const char* cmd)
@@ -683,7 +692,7 @@ bool processDomePositionCommand(const char* cmd)
                     case 1:
                         // endPos
                         val[0] = min(val[0], 100);
-                        DEBUG_PRINTLN("moveTo num:"+String(num)+" pos: "+val[0]);
+                        DEBUG_PRINT(F("moveTo num:")); DEBUG_PRINT(num); DEBUG_PRINT(F(" pos: ")); DEBUG_PRINTLN(val[0]);
                         sServoDispatch.moveTo(num, float(val[0]) / 100);
                         break;
                     case 0:
@@ -759,7 +768,7 @@ bool processDomePositionCommand(const char* cmd)
             sDomeDrive.autonomousDriveDome(0);
             if (*cmd == '\0')
             {
-                Serial.print(F("ROTARY DEGREE: ")); Serial.print(degrees); Serial.print(" speed: "); Serial.println(speed);
+                Serial.print(F("ROTARY DEGREE: ")); Serial.print(degrees); Serial.print(F(" speed: ")); Serial.println(speed);
                 if (relative)
                 {
                     sDomePosition.setDomeRelativeTargetPosition(degrees);
@@ -773,7 +782,7 @@ bool processDomePositionCommand(const char* cmd)
                     sDomePosition.setDomeTargetSpeed(speed * 100);
                 }
                 sDomePosition.setTargetReached([]() {
-                    Serial.print("REACHED TARGET: "); Serial.println(sDomePosition.getHomeRelativeDomePosition());
+                    Serial.print(F("REACHED TARGET: ")); Serial.println(sDomePosition.getHomeRelativeDomePosition());
                     sDomePosition.setDomeMode(sDomePosition.getDomeDefaultMode());
                     sDomePosition.setDomeTargetSpeed(sSettings.fDomeSpeedTarget);
                     sWaitTarget = false;
@@ -860,7 +869,7 @@ bool processDomePositionCommand(const char* cmd)
             sDomeDrive.autonomousDriveDome(0);
             sDomePosition.setDomeHomeRelativeTargetPosition(0);
                 sDomePosition.setTargetReached([]() {
-                    Serial.print("REACHED HOME: "); Serial.println(sDomePosition.getHomeRelativeDomePosition());
+                    Serial.print(F("REACHED HOME: ")); Serial.println(sDomePosition.getHomeRelativeDomePosition());
                     sDomePosition.setDomeMode(sDomePosition.getDomeDefaultMode());
                     sDomePosition.setDomeTargetSpeed(sSettings.fDomeSpeedTarget);
                     sWaitTarget = false;
@@ -938,41 +947,41 @@ void processConfigureCommand(const char* cmd)
     }
     else if (startswith(cmd, "#DPCONFIG"))
     {
-        Serial.print("HomePos="); Serial.println(sSettings.fHomePosition);
-        Serial.print("MaxSpeed="); Serial.println(sSettings.fMaxSpeed);
-        Serial.print("MinSpeed="); Serial.println(sSettings.fDomeSpeedMin);
-        Serial.print("SeekMode="); Serial.println(sSettings.fRandomMode);
-        Serial.print("HomeMode="); Serial.println(sSettings.fHomeMode);
-        Serial.print("Scaling="); Serial.println(sSettings.fSpeedScaling);
-        Serial.print("Inverted="); Serial.println(sSettings.fInverted);
-        Serial.print("Timeout="); Serial.println(sSettings.fTimeout);
-        Serial.print("AutoSafety="); Serial.println(sSettings.fAutoSafety);
-        Serial.print("AccelerationScale="); Serial.println(sSettings.fAccScale);
-        Serial.print("DecelerationScale="); Serial.println(sSettings.fDecScale);
-        Serial.print("HomeMinDelay="); Serial.println(sSettings.fDomeHomeMinDelay);
-        Serial.print("HomeMaxDelay="); Serial.println(sSettings.fDomeHomeMaxDelay);
-        Serial.print("SeekMinDelay="); Serial.println(sSettings.fDomeSeekMinDelay);
-        Serial.print("SeekMaxDelay="); Serial.println(sSettings.fDomeSeekMaxDelay);
-        Serial.print("TargetMinDelay="); Serial.println(sSettings.fDomeTargetMinDelay);
-        Serial.print("TargetMaxDelay="); Serial.println(sSettings.fDomeTargetMaxDelay);
-        Serial.print("SeekLeft="); Serial.println(sSettings.fDomeSeekLeft);
-        Serial.print("SeekRight="); Serial.println(sSettings.fDomeSeekRight);
-        Serial.print("Fudge="); Serial.println(sSettings.fDomeFudge);
-        Serial.print("SpeedHome="); Serial.println(sSettings.fDomeSpeedHome);
-        Serial.print("SpeedSeek="); Serial.println(sSettings.fDomeSpeedSeek);
-        Serial.print("SpeedTarget="); Serial.println(sSettings.fDomeSpeedTarget);
-        Serial.print("SaberBaud="); Serial.println(sSettings.fSaberBaudRate);
-        Serial.print("MarcBaud="); Serial.println(sSettings.fMarcBaudRate);
-        Serial.print("SerialIn="); Serial.println(sSettings.fPacketSerialInput);
-        Serial.print("SerialOut="); Serial.println(sSettings.fPacketSerialOutput);
-        Serial.print("PWMIn="); Serial.println(sSettings.fPWMInput);
-        Serial.print("PWMOut="); Serial.println(sSettings.fPWMOutput);
-        Serial.print("PWMMinPulse="); Serial.println(sSettings.fPWMMinPulse);
-        Serial.print("PWMMaxPulse="); Serial.println(sSettings.fPWMMaxPulse);
-        Serial.print("PWMNeutralPulse="); Serial.println(sSettings.fPWMNeutralPulse);
-        Serial.print("PWMDeadband="); Serial.println(sSettings.fPWMDeadbandPercent);
+        Serial.print(F("HomePos=")); Serial.println(sSettings.fHomePosition);
+        Serial.print(F("MaxSpeed=")); Serial.println(sSettings.fMaxSpeed);
+        Serial.print(F("MinSpeed=")); Serial.println(sSettings.fDomeSpeedMin);
+        Serial.print(F("SeekMode=")); Serial.println(sSettings.fRandomMode);
+        Serial.print(F("HomeMode=")); Serial.println(sSettings.fHomeMode);
+        Serial.print(F("Scaling=")); Serial.println(sSettings.fSpeedScaling);
+        Serial.print(F("Inverted=")); Serial.println(sSettings.fInverted);
+        Serial.print(F("Timeout=")); Serial.println(sSettings.fTimeout);
+        Serial.print(F("AutoSafety=")); Serial.println(sSettings.fAutoSafety);
+        Serial.print(F("AccelerationScale=")); Serial.println(sSettings.fAccScale);
+        Serial.print(F("DecelerationScale=")); Serial.println(sSettings.fDecScale);
+        Serial.print(F("HomeMinDelay=")); Serial.println(sSettings.fDomeHomeMinDelay);
+        Serial.print(F("HomeMaxDelay=")); Serial.println(sSettings.fDomeHomeMaxDelay);
+        Serial.print(F("SeekMinDelay=")); Serial.println(sSettings.fDomeSeekMinDelay);
+        Serial.print(F("SeekMaxDelay=")); Serial.println(sSettings.fDomeSeekMaxDelay);
+        Serial.print(F("TargetMinDelay=")); Serial.println(sSettings.fDomeTargetMinDelay);
+        Serial.print(F("TargetMaxDelay=")); Serial.println(sSettings.fDomeTargetMaxDelay);
+        Serial.print(F("SeekLeft=")); Serial.println(sSettings.fDomeSeekLeft);
+        Serial.print(F("SeekRight=")); Serial.println(sSettings.fDomeSeekRight);
+        Serial.print(F("Fudge=")); Serial.println(sSettings.fDomeFudge);
+        Serial.print(F("SpeedHome=")); Serial.println(sSettings.fDomeSpeedHome);
+        Serial.print(F("SpeedSeek=")); Serial.println(sSettings.fDomeSpeedSeek);
+        Serial.print(F("SpeedTarget=")); Serial.println(sSettings.fDomeSpeedTarget);
+        Serial.print(F("SaberBaud=")); Serial.println(sSettings.fSaberBaudRate);
+        Serial.print(F("MarcBaud=")); Serial.println(sSettings.fMarcBaudRate);
+        Serial.print(F("SerialIn=")); Serial.println(sSettings.fPacketSerialInput);
+        Serial.print(F("SerialOut=")); Serial.println(sSettings.fPacketSerialOutput);
+        Serial.print(F("PWMIn=")); Serial.println(sSettings.fPWMInput);
+        Serial.print(F("PWMOut=")); Serial.println(sSettings.fPWMOutput);
+        Serial.print(F("PWMMinPulse=")); Serial.println(sSettings.fPWMMinPulse);
+        Serial.print(F("PWMMaxPulse=")); Serial.println(sSettings.fPWMMaxPulse);
+        Serial.print(F("PWMNeutralPulse=")); Serial.println(sSettings.fPWMNeutralPulse);
+        Serial.print(F("PWMDeadband=")); Serial.println(sSettings.fPWMDeadbandPercent);
 
-        Serial.print("DOut=");
+        Serial.print(F("DOut="));
         // Write out the pins backwards (pin1 first)
         uint8_t pins = sSettings.fDigitalPins;
         for (uint8_t i = 0; i < 8; i++)
@@ -1096,7 +1105,7 @@ void processConfigureCommand(const char* cmd)
         }
         else
         {
-            Serial.print("\nCURRENT POSITION: "); Serial.println(sDomePosition.getDomePosition());
+            Serial.print(F("\nCURRENT POSITION: ")); Serial.println(sDomePosition.getDomePosition());
             sDomePosition.setDomeHomePosition(sDomePosition.getDomePosition());
         }
         sSettings.fHomePosition = sDomePosition.getDomeHome();
@@ -1202,8 +1211,8 @@ void processConfigureCommand(const char* cmd)
     else if (startswith(cmd, "#DPJOY"))
     {
         // Enable serial joystick
-        Serial.println("Serial Console Joystick Emulation Connected.");
-        Serial.println("Press END to stop.");
+        Serial.println(F("Serial Console Joystick Emulation Connected."));
+        Serial.println(F("Press END to stop."));
         sDomeStick.connect();
     }
     else if (startswith(cmd, "#DPS") && isdigit(*cmd))
@@ -1227,7 +1236,7 @@ void processConfigureCommand(const char* cmd)
                         // speed
                         int32_t speed = strtol(cmd+1, &cmd);
                         speed = min(max(speed, -100), 100);
-                        Serial.print("Rotate Speed: ");
+                        Serial.print(F("Rotate Speed: "));
                         Serial.println(speed);
                         break;
                     }
@@ -1280,9 +1289,9 @@ void processConfigureCommand(const char* cmd)
                                 maxspeed = max(min(max(int(maxspeed), 0), 100), int(speed));
                             }
                         }
-                        Serial.print("Rotate ");
-                        Serial.print((relative) ? "Relative" : "Absolute");
-                        Serial.print(" Degrees: ");
+                        Serial.print(F("Rotate "));
+                        Serial.print((relative) ? F("Relative") : F("Absolute"));
+                        Serial.print(F(" Degrees: "));
                         if (randdegrees)
                             Serial.print(F("Random"));
                         else
@@ -1297,9 +1306,9 @@ void processConfigureCommand(const char* cmd)
                         }
                         if (maxspeed != 0 || randmax)
                         {
-                            Serial.print(" Max Speed: ");
+                            Serial.print(F(" Max Speed: "));
                             if (randmax)
-                                Serial.print("Random");
+                                Serial.print(F("Random"));
                             else
                                 Serial.print(maxspeed);
                         }
@@ -1336,12 +1345,12 @@ void processConfigureCommand(const char* cmd)
                                 randlower = t;
                             }
                         }
-                        Serial.print("Wait Seconds: ");
+                        Serial.print(F("Wait Seconds: "));
                         if (rand)
                         {
-                            Serial.print("Random ");
+                            Serial.print(F("Random "));
                             Serial.print(randlower);
-                            Serial.print(" - ");
+                            Serial.print(F(" - "));
                             Serial.println(seconds);
                         }
                         else
@@ -1358,22 +1367,22 @@ void processConfigureCommand(const char* cmd)
                         {
                             speed = strtolu(cmd+1, &cmd);
                             speed = max(speed, int(sSettings.fDomeSpeedMin));
-                            Serial.print("Return Home: Speed: Random ");
+                            Serial.print(F("Return Home: Speed: Random "));
                             Serial.print(sSettings.fDomeSpeedMin);
-                            Serial.print(" - ");
+                            Serial.print(F(" - "));
                             Serial.println(speed);
                         }
                         else if (isdigit(*cmd))
                         {
                             speed = strtolu(cmd+1, &cmd);
                             speed = max(speed, int(sSettings.fDomeSpeedMin));
-                            Serial.print("Return Home: Speed: ");
+                            Serial.print(F("Return Home: Speed: "));
                             Serial.println(speed);
                         }
                         else
                         {
                             speed = sDomePosition.getDomeSpeedHome() * 100;
-                            Serial.print("Return Home: Speed: ");
+                            Serial.print(F("Return Home: Speed: "));
                             Serial.println(speed);
                         }
                         break;
@@ -1486,7 +1495,7 @@ void loop()
         }
     }
 #endif
-    if (sProcessing && millis() > sWaitNextSerialCommand)
+    if (sProcessing && !sWaitTarget && millis() > sWaitNextSerialCommand)
     {
         if (sCmdBuffer[0] == ':')
         {
@@ -1497,7 +1506,7 @@ void loop()
             {
                 // command invalid abort buffer
                 DEBUG_PRINT(F("Unrecognized: ")); DEBUG_PRINTLN(sCmdBuffer);
-                sWaitNextSerialCommand = 0;
+                abortSerialCommand();
                 end = nullptr;
             }
             if (end != nullptr)
@@ -1523,8 +1532,7 @@ void loop()
             {
                 // command invalid abort buffer
                 DEBUG_PRINT(F("Unrecognized: ")); DEBUG_PRINTLN(sBuffer);
-                sWaitNextSerialCommand = 0;
-                end = nullptr;
+                abortSerialCommand();
             }
             if (end != nullptr)
             {
@@ -1592,7 +1600,7 @@ void loop()
                 default:
                     if (!sSerialMotorActivity)
                     {
-                        DEBUG_PRINTLN("Syren Active");
+                        DEBUG_PRINTLN(F("Syren Active"));
                         sSerialMotorActivity = true;
                     }
                     // DEBUG_PRINT("["); DEBUG_PRINT(address); DEBUG_PRINT("] ");
@@ -1604,11 +1612,11 @@ void loop()
         }
         else
         {
-            DEBUG_PRINT("{BAD}");
-            DEBUG_PRINT("["); DEBUG_PRINT(address); DEBUG_PRINT("] ");
-            DEBUG_PRINT(command); DEBUG_PRINT(":");
-            DEBUG_PRINT(value); DEBUG_PRINT(":CRC:");
-            DEBUG_PRINT_HEX(calcCRC); DEBUG_PRINT(":EXPECTED:");
+            DEBUG_PRINT(F("{BAD}"));
+            DEBUG_PRINT('['); DEBUG_PRINT(address); DEBUG_PRINT(F("] "));
+            DEBUG_PRINT(command); DEBUG_PRINT(':');
+            DEBUG_PRINT(value); DEBUG_PRINT(F(":CRC:"));
+            DEBUG_PRINT_HEX(calcCRC); DEBUG_PRINT(F(":EXPECTED:"));
             DEBUG_PRINT_HEX(crc);
             DEBUG_PRINTLN(value);
             sReadBuffer[0] = sReadBuffer[1];
@@ -1627,7 +1635,7 @@ void loop()
     }
     if (sSerialMotorActivity && sLastSerialMotorEvent + PACKET_SERIAL_TIMEOUT < millis())
     {
-        DEBUG_PRINTLN("Syren Idle");
+        DEBUG_PRINTLN(F("Syren Idle"));
         sSerialMotorActivity = false;
         sLastMotorValue = 0;
     }
@@ -1644,7 +1652,7 @@ void loop()
 #ifdef PWM_INPUT_PIN
     if (sSettings.fPWMInput && pulseInput.becameInactive())
     {
-        DEBUG_PRINTLN("No PWM Input");
+        DEBUG_PRINTLN(F("No PWM Input"));
         sDomeDrive.driveDome(0);
     }
 #endif
