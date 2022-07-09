@@ -67,7 +67,6 @@
 
 #define DOME_SENSOR_SERIAL      Serial1
 #define DOME_DRIVE_SERIAL       Serial2
-#define MARC_SERIAL             Serial3
 #define CONSOLE_BUFFER_SIZE     300
 #define COMMAND_BUFFER_SIZE     256
 
@@ -76,56 +75,49 @@
 #define PACKET_SERIAL_TIMEOUT   1500
 
 ///////////////////////////////////
-// CONTROL BOARD PIN OUT
-///////////////////////////////////
-// Only change if you using a
-// different PCB
-///////////////////////////////////
-
-#define PWM_INPUT_PIN           2
-#define PWM_OUTPUT_PIN          3
-
-#define PIN_ENCODER_A           4
-#define PIN_ENCODER_B           5
-
-#define BUTTON_IN               8
-#define BUTTON_LEFT             9
-#define BUTTON_UP               12
-#define BUTTON_RIGHT            11
-#define BUTTON_DOWN             10
-
-#define DOUT1_PIN               22
-#define DOUT2_PIN               23
-#define DOUT3_PIN               24
-#define DOUT4_PIN               25
-#define DOUT5_PIN               26
-#define DOUT6_PIN               27
-#define DOUT7_PIN               28
-#define DOUT8_PIN               29
-
-#define SENSOR1_PIN             A0
-#define SENSOR2_PIN             A1
-#define SENSOR3_PIN             A2
-#define SENSOR4_PIN             A3
-#define SENSOR5_PIN             A4
-#define SENSOR6_PIN             A5
-#define SENSOR7_PIN             A6
-#define SENSOR8_PIN             A7
-#define SENSOR9_PIN             A8
-#define SENSOROUT_PIN           A9
+#ifdef ESP32
+//#define AMIDALA_AUTOMATION_PCB
+#define LILYGO_MINI32
+#endif
+#include "pin-map.h"
 
 ///////////////////////////////////
 
 #include "ReelTwo.h"
+
+#ifdef USE_SCREEN
+ #ifndef SDA
+  // Disable screen if I2C pins not declared
+  #undef USE_SCREEN
+ #endif
+#endif
+
+#ifdef ARDUINO_ARCH_LINUX
+ #define USE_SIMULATOR
+ #undef DOME_SENSOR_SERIAL
+ #undef DOME_DRIVE_SERIAL
+#endif
+
+#if defined(ESP32) || defined(ARDUINO_ARCH_LINUX)
+ #define EEPROM_SIZE             4096
+#endif
+
+///////////////////////////////////
+
 #include "core/AnimatedEvent.h"
-#include "core/AnalogMonitor.h"
 #include "core/StringUtils.h"
 #include "core/EEPROMSettings.h"
 #include "core/PinManager.h"
-#include "drive/DomeSensorRingSerialListener.h"
+#include "drive/DomePosition.h"
 #include "drive/SerialConsoleController.h"
+#include "drive/DomeDrive.h"
+#ifndef USE_SIMULATOR
+#include "drive/DomeSensorRingSerialListener.h"
 #include "drive/DomeDriveSabertooth.h"
+#endif
+#ifdef PWM_INPUT_PIN
 #include "encoder/ServoDecoder.h"
+#endif
 #ifdef USE_SERVOS
 #include "ServoDispatchDirect.h"
 #include "ServoEasing.h"
@@ -135,6 +127,60 @@
 #include <Adafruit_SSD1306.h>
 #include "encoder/AnoRotaryEncoder.h"
 #include <Wire.h>
+#endif
+
+///////////////////////////////////
+
+#ifdef USE_I2C_GPIO_EXPANDER
+#include "PCF8574.h"
+#ifndef GPIO_EXPANDER_ADDRESS
+#define GPIO_EXPANDER_ADDRESS 0x20
+#endif
+
+class CustomPinManager : public PinManager
+{
+public:
+    CustomPinManager(byte i2cAddress = GPIO_EXPANDER_ADDRESS) :
+        fGPIOExpander(i2cAddress)
+    {}
+
+    virtual bool digitalRead(uint8_t pin) override
+    {
+        if (pin >= GPIO_PIN_BASE)
+        {
+            return fGPIOExpander.digitalRead(pin, true);
+        }
+        return PinManager::digitalRead(pin);
+    }
+    virtual void digitalWrite(uint8_t pin, uint8_t val) override
+    {
+        if (pin >= GPIO_PIN_BASE)
+        {
+            fGPIOExpander.digitalWrite(pin, val);
+        }
+        else
+        {
+            PinManager::digitalWrite(pin, val);
+        }
+    }
+    virtual void pinMode(uint8_t pin, uint8_t mode) override
+    {
+        if (pin >= GPIO_PIN_BASE)
+        {
+            fGPIOExpander.pinMode(pin, mode);
+        }
+        else
+        {
+            PinManager::pinMode(pin, mode);
+        }
+    }
+
+protected:
+    PCF8574 fGPIOExpander;
+};
+CustomPinManager sPinManager;
+#else
+PinManager sPinManager;
 #endif
 
 ///////////////////////////////////
@@ -150,7 +196,6 @@
 #include "CommandScreen.h"
 #include "CommandScreenHandlerSSD1306.h"
 
-PinManager sPinManager;
 CommandScreenHandlerSSD1306 sDisplay(sPinManager);
 
 #endif
@@ -206,7 +251,42 @@ ServoDispatchDirect<SizeOfArray(sServoSettings)> sServoDispatch(sServoSettings);
 
 ////////////////////////////////
 
+#ifdef USE_SIMULATOR
+class DomeSensorRingEmulator: public DomePositionProvider
+{
+public:
+    DomeSensorRingEmulator()
+    {
+    }
+
+    virtual bool ready() override
+    {
+        return true;
+    }
+
+    int normalize(int degrees)
+    {
+        degrees = fmod(degrees, 360);
+        if (degrees < 0)
+            degrees += 360;
+        return degrees;
+    }
+
+    virtual int getAngle() override
+    {
+        return normalize(fDomePositionDegrees);
+    }
+
+    float fDomePositionDegrees = 0;
+
+private:
+    bool fReady = false;
+};
+
+DomeSensorRingEmulator sDomeRing;
+#else
 DomeSensorRingSerialListener sDomeRing(DOME_SENSOR_SERIAL);
+#endif
 DomePosition sDomePosition(sDomeRing);
 
 class SerialDomeController : public SerialConsoleController, public AnimatedEvent
@@ -249,9 +329,55 @@ public:
         }
     }
 };
-
 SerialDomeController sDomeStick(Serial);
+
+#ifdef USE_SIMULATOR
+class DomeDriveEmulator : public DomeDrive
+{
+public:
+    /** \brief Constructor
+      *
+      * Only a single instance of WifiSerialBridge should be created per sketch.
+      *
+      * \param port the port number of this service
+      */
+    DomeDriveEmulator(DomeSensorRingEmulator& domeRing, JoystickController& domeStick) :
+        DomeDrive(domeStick),
+        fDomeRing(domeRing)
+    {
+    }
+
+    virtual void setup() override
+    {
+    }
+
+    virtual void stop() override
+    {
+        DomeDrive::stop();
+    }
+
+protected:
+    DomeSensorRingEmulator& fDomeRing;
+    virtual void motor(float m) override
+    {
+        static float sLastMotor;
+        static int sLastPos;
+        float pos = fDomeRing.fDomePositionDegrees;
+        if (sLastMotor != m || sLastPos != int(pos))
+        {
+            printf("MOTOR %0.2f POS=%d [%d]            \r", m, normalize(pos), int(pos));
+            fflush(stdout);
+            // printf("MOTOR %0.2f POS=%d [%d]\n", m, normalize(pos), int(pos));
+            sLastMotor = m;
+            sLastPos = int(pos);
+        }
+        fDomeRing.fDomePositionDegrees -= m;
+    }
+};
+DomeDriveEmulator sDomeDrive(sDomeRing, sDomeStick);
+#else
 DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS, DOME_DRIVE_SERIAL, sDomeStick);
+#endif
 
 #ifdef USE_SERVOS
 struct Channel
@@ -315,7 +441,7 @@ struct DomeControllerSettings
 #endif
 };
 EEPROMSettings<DomeControllerSettings> sSettings;
-bool sDomeHasMovedManually = true;
+bool sDomeHasMovedManually = false;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -446,10 +572,23 @@ static void restoreDomeSettings()
 void setup()
 {
     REELTWO_READY();
+#ifdef DOME_SENSOR_SERIAL
+ #ifdef ESP32
+    DOME_SENSOR_SERIAL.begin(DOME_SENSOR_SERIAL_BAUD, SERIAL_8N1, RXD1_PIN, 0 /* not used */);
+ #else
     DOME_SENSOR_SERIAL.begin(DOME_SENSOR_SERIAL_BAUD);
+ #endif
+#endif
 
     Serial.print(F("Droid Dome Controller - "));
     Serial.println(F(__DATE__));
+#ifdef EEPROM_SIZE
+    if (!EEPROM.begin(EEPROM_SIZE))
+    {
+        Serial.println("Failed to initialize EEPROM");
+    }
+    else
+#endif
     if (sSettings.read())
     {
         Serial.println(F("Settings Restored"));
@@ -463,7 +602,13 @@ void setup()
             Serial.println(F("Readback Success"));
         }
     }
+#ifdef DOME_DRIVE_SERIAL
+ #ifdef ESP32
+    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, TXD2_PIN);
+ #else
     DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate);
+ #endif
+#endif
 #ifdef MARC_SERIAL
     MARC_SERIAL.begin(sSettings.fMarcBaudRate);
 #endif
@@ -472,10 +617,14 @@ void setup()
 
 #ifdef USE_SCREEN
     Wire.begin();
+#ifndef ESP32
     Wire.setWireTimeout();
+#endif
     Wire.beginTransmission(SCREEN_ADDRESS);
     Wire.endTransmission();
+#ifndef ESP32
     if (!Wire.getWireTimeoutFlag())
+#endif
     {
         sDisplay.setEnabled(sDisplay.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS));
         if (sDisplay.isEnabled())
@@ -1555,7 +1704,7 @@ void loop()
             resetSerialCommand();
         }
     }
-
+#ifdef DOME_DRIVE_SERIAL
     static float sLastMotorValue;
     if (sReadPos == sizeof(sReadBuffer))
     {
@@ -1578,15 +1727,14 @@ void loop()
                     sLastMotorValue = mval;
                     if (value == 0)
                         break;
-                    // FALL THROUGH
-                    [[fallthrough]];
+                   FALL_THROUGH
                 }
                 case 4: /* motor #2 */
                 case 5: /* motor #2 - negative */
                     if (value == 0)
                         break;
-                    // FALL THROUGH
-                    [[fallthrough]];
+                   FALL_THROUGH
+
                 case 2: /* setMinVoltage */
                 case 3: /* setMaxVoltage */
                 case 8: /* drive */
@@ -1648,7 +1796,7 @@ void loop()
         }
         sDomeDrive.driveDome(sLastMotorValue);
     }
-
+#endif
 #ifdef PWM_INPUT_PIN
     if (sSettings.fPWMInput && pulseInput.becameInactive())
     {
