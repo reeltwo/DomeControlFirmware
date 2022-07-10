@@ -85,15 +85,9 @@
 
 #include "ReelTwo.h"
 
-#ifdef USE_SCREEN
- #ifndef SDA
-  // Disable screen if I2C pins not declared
-  #undef USE_SCREEN
- #endif
-#endif
-
 #ifdef ARDUINO_ARCH_LINUX
  #define USE_SIMULATOR
+ #undef USE_SCREEN
  #undef DOME_SENSOR_SERIAL
  #undef DOME_DRIVE_SERIAL
 #endif
@@ -126,7 +120,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "encoder/AnoRotaryEncoder.h"
-#include <Wire.h>
 #endif
 
 ///////////////////////////////////
@@ -1086,6 +1079,54 @@ static void updateSettings()
     Serial.println(F("Updated"));
 }
 
+// Given motor power percentage returns speed in cm/s
+float calculateSpeed(unsigned speedPercentage)
+{
+    if (sSettings.fAutoSafety && !sDomeHasMovedManually)
+    {
+        Serial.println(F("AUTO SAFETY PREVENTED TARGET MODE"));
+        return 0;
+    }
+    sWaitTarget = true;
+    float speed = sDomePosition.getDomeSpeedTarget();
+    float minspeed = sDomePosition.getDomeMinSpeed();
+    int32_t degrees = 360;
+    sDomeDrive.autonomousDriveDome(0);
+    sDomePosition.setDomeRelativeTargetPosition(degrees);
+    sDomePosition.setDomeTargetSpeed(speed * 100);
+    sDomePosition.setTargetReached([]() {
+        Serial.print(F("REACHED TARGET: ")); Serial.println(sDomePosition.getHomeRelativeDomePosition());
+        sDomePosition.setDomeMode(sDomePosition.getDomeDefaultMode());
+        sDomePosition.setDomeTargetSpeed(sSettings.fDomeSpeedTarget);
+        sWaitTarget = false;
+    });
+    long startTime = millis();
+    sDomePosition.setDomeMode(DomePosition::kTarget);
+
+    while (sWaitTarget)
+    {
+        AnimatedEvent::process();
+    #ifdef USE_SCREEN
+        sDisplay.process();
+    #endif
+    }
+    long stopTime = millis();
+    const float domeDiameterInches = 18.25;
+    float linearVelocity = (2 * M_PI) / (float(stopTime - startTime) / 1000);
+    float angularVelocityCentimetersPerSecond = (linearVelocity * (domeDiameterInches * 0.0256) / 2) * 100;
+    return angularVelocityCentimetersPerSecond;
+}
+
+bool setupDomeControl()
+{
+    // for (unsigned speed = 20; speed <= 100; speed += 5)
+    // {
+        float duration = calculateSpeed(100);
+        Serial.println(duration);
+    // }
+    return true;
+}
+
 void processConfigureCommand(const char* cmd)
 {
     if (startswith(cmd, "#DPZERO"))
@@ -1142,6 +1183,7 @@ void processConfigureCommand(const char* cmd)
     }
     else if (startswith(cmd, "#DPSETUP"))
     {
+        setupDomeControl();
     }
     else if (startswith(cmd, "#DPL"))
     {
