@@ -5,12 +5,15 @@
 // CONFIGURABLE OPTIONS
 ///////////////////////////////////
 
-#define USE_DEBUG               // Define to enable debug diagnostic
-#define USE_SCREEN              // Define if using LCD and Rotary encoder
-#undef  USE_SERVOS              // Define is enabling servo output on digital out pins
-#undef  USE_DOME_DEBUG          // Define for dome motor specific debug
-#undef  USE_DOME_SENSOR_DEBUG   // Define for dome sensor ring specific debug
+#define USE_DEBUG                     // Define to enable debug diagnostic
+#define USE_SCREEN                    // Define if using LCD and Rotary encoder
+#undef  USE_SERVOS                    // Define is enabling servo output on digital out pins
+#undef  USE_DOME_DEBUG                // Define for dome motor specific debug
+#undef  USE_DOME_SENSOR_SERIAL_DEBUG  // Define for dome sensor ring specific debug
 
+#define SETUP_MAX_ANGULAR_VELOCITY      45 /* cm/s */
+#define SETUP_VELOCITY_START            40
+#define SETUP_VELOCITY_INCREMENT        10
 #define DEFAULT_HOME_POSITION           0
 #define DEFAULT_SABER_BAUD              9600
 #define DEFAULT_MARC_BAUD               9600
@@ -21,7 +24,7 @@
 #define DEFAULT_MAX_SPEED               50
 #define DEFAULT_RANDOM_MODE             false
 #define DEFAULT_HOME_MODE               false
-#define DEFAULT_SPEED_SCALING           true
+#define DEFAULT_SPEED_SCALING           false
 // If true no automatic movement will happen until the dome has been moved by joystick first.
 // If false automatic movement can happen on startup.
 #define DEFAULT_AUTO_SAFETY             true
@@ -31,7 +34,7 @@
 #define DEFAULT_PWM_NEUTRAL_PULSE       1500
 #define DEFAULT_PWM_DEADBAND            5
 #define DEFAULT_ACCELERATION_SCALE      20
-#define DEFAULT_DECELERATION_SCALE      5
+#define DEFAULT_DECELERATION_SCALE      50
 #define DEFAULT_DOME_HOME_MIN_DELAY     6
 #define DEFAULT_DOME_HOME_MAX_DELAY     8
 #define DEFAULT_DOME_SEEK_MIN_DELAY     6
@@ -510,7 +513,7 @@ static void restoreDomeSettings()
     sDomeDrive.setScaling(sSettings.fSpeedScaling);
     sDomeDrive.setInverted(sSettings.fInverted);
     sDomeDrive.setThrottleAccelerationScale(sSettings.fAccScale);
-    sDomeDrive.setThrottleAccelerationScale(sSettings.fDecScale);
+    sDomeDrive.setThrottleDecelerationScale(sSettings.fDecScale);
     sDomePosition.setTimeout(sSettings.fTimeout);
     sDomePosition.setDomeHomePosition(sSettings.fHomePosition);
     sDomePosition.setDomeSeekMinDelay(sSettings.fDomeSeekMinDelay);
@@ -1029,33 +1032,45 @@ bool processDomePositionCommand(const char* cmd)
         {
             // wait seconds
             bool rand = false;
+            bool waitms = false;
             int randlower = 1;
-            int seconds;
-            if ((rand = (*cmd == 'R')))
+            int32_t duration;
+            if ((waitms = (*cmd == 'M')))
                 cmd++;
-            seconds = strtolu(cmd, &cmd);
-            seconds = min(max(seconds, 0), 600);
+            else if ((rand = (*cmd == 'R')))
+                cmd++;
+            duration = strtolu(cmd, &cmd);
             if (rand)
             {
-                if (seconds == 0)
-                    seconds = 6;
+                if (duration == 0)
+                    duration = 6;
                 if (*cmd == ',')
                 {
                     randlower = strtolu(cmd+1, &cmd);
                     randlower = min(max(randlower, 0), 600);
                 }
-                if (randlower > seconds)
+                if (randlower > duration)
                 {
-                    uint32_t t = seconds;
-                    seconds = randlower;
+                    uint32_t t = duration;
+                    duration = randlower;
                     randlower = t;
                 }
-                seconds = random(randlower, seconds);
+                duration = random(randlower, duration);
             }
-            Serial.print(F("WAIT SECONDS: ")); Serial.println(seconds);
+            if (!waitms)
+            {
+                duration = min(max(duration, 1), 600);
+                Serial.print(F("WAIT SECONDS: ")); Serial.println(duration);
+                duration = duration * 1000L;
+            }
+            else
+            {
+                duration = min(max(duration, 1), 600*1000L);
+                Serial.print(F("WAIT MILLIS: ")); Serial.println(duration);
+            }
             if (*cmd == '\0')
             {
-                sWaitNextSerialCommand = millis() + uint32_t(min(max(int(seconds), 1), 600)) * 1000L;
+                sWaitNextSerialCommand = millis() + duration;
             }
             else
             {
@@ -1089,7 +1104,6 @@ float calculateSpeed(unsigned speedPercentage)
     }
     sWaitTarget = true;
     float speed = sDomePosition.getDomeSpeedTarget();
-    float minspeed = sDomePosition.getDomeMinSpeed();
     int32_t degrees = 360;
     sDomeDrive.autonomousDriveDome(0);
     sDomePosition.setDomeRelativeTargetPosition(degrees);
@@ -1119,11 +1133,32 @@ float calculateSpeed(unsigned speedPercentage)
 
 bool setupDomeControl()
 {
-    // for (unsigned speed = 20; speed <= 100; speed += 5)
-    // {
-        float duration = calculateSpeed(100);
-        Serial.println(duration);
-    // }
+    // Manual command so allow dome to move
+    sDomeHasMovedManually = true;
+    // Loop starts with 50% and ends after 100%
+    unsigned speed = SETUP_VELOCITY_START;
+    do
+    {
+        speed += SETUP_VELOCITY_INCREMENT;
+        Serial.print("SPEED: "); Serial.println(speed);
+        sDomeDrive.setMaxSpeed(speed / 100.0);
+        sDomeDrive.setThrottleDecelerationScale(1);
+        float duration = calculateSpeed(speed);
+        if (!duration)
+        {
+            Serial.println("AUTO SETUP FAILED");
+            return false;
+        }
+        Serial.print("Angular velocity: "); Serial.print(duration); Serial.println(" cm/s");
+        if (duration >= SETUP_MAX_ANGULAR_VELOCITY)
+        {
+            Serial.print("GOOD MAX SPEED: "); Serial.println(speed);
+            break;
+        }
+    }
+    while (speed < 100);
+    sSettings.fMaxSpeed = speed;
+    updateSettings();
     return true;
 }
 
@@ -1184,6 +1219,7 @@ void processConfigureCommand(const char* cmd)
     else if (startswith(cmd, "#DPSETUP"))
     {
         setupDomeControl();
+        restoreDomeSettings();
     }
     else if (startswith(cmd, "#DPL"))
     {
@@ -1724,6 +1760,7 @@ void loop()
                 // command invalid abort buffer
                 DEBUG_PRINT(F("Unrecognized: ")); DEBUG_PRINTLN(sBuffer);
                 abortSerialCommand();
+                end = nullptr;
             }
             if (end != nullptr)
             {
