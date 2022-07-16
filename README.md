@@ -2,7 +2,7 @@
 
 This is the sketch for the Roam-A-Dome-Home (RDH) setup. It depends on the Adafruit_SSD1306, Adafruit_GFX, and the Reeltwo library. You can download the latest release of the Reeltwo library here: https://github.com/reeltwo/Reeltwo/releases
 
-The ESP version also depends on the EspSoftwareSerial. You can find the branch useed here: https://github.com/rimim/espsoftwareserial
+The ESP version also depends on the EspSoftwareSerial. You can find the branch used here: https://github.com/rimim/espsoftwareserial
 
 ![Roam-a-dome-home](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/main/images/RDH-PCBs.jpg)
 
