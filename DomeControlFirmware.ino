@@ -1225,10 +1225,12 @@ static void updateSettings()
 {
     restoreDomeSettings();
 #ifdef DOME_DRIVE_SOFT_SERIAL
+    #error
     // We must disable software serial on the ESP while updating flash memory
     // the software serial RX interrupt will otherwise try to access cached memory
     // while cache is disabled.
     DOME_DRIVE_SERIAL.end();
+    delay(200);
 #endif
     sSettings.write();
 #ifdef DOME_DRIVE_SOFT_SERIAL
