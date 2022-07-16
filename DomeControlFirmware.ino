@@ -69,7 +69,12 @@
 #define SYREN_ADDRESS_READ      129
 
 #define DOME_SENSOR_SERIAL      Serial1
-#define DOME_DRIVE_SERIAL       Serial2
+#ifdef ESP32
+ #define DOME_DRIVE_SOFT_SERIAL
+ #define DOME_DRIVE_SERIAL      driveSerial
+#else
+ #define DOME_DRIVE_SERIAL      Serial2
+#endif
 #define CONSOLE_BUFFER_SIZE     300
 #define COMMAND_BUFFER_SIZE     256
 
@@ -79,8 +84,8 @@
 
 ///////////////////////////////////
 #ifdef ESP32
-//#define AMIDALA_AUTOMATION_PCB
-#define LILYGO_MINI32
+#define AMIDALA_AUTOMATION_PCB
+//#define LILYGO_MINI32
 #endif
 #include "pin-map.h"
 
@@ -95,9 +100,9 @@
  #undef DOME_DRIVE_SERIAL
 #endif
 
-#if defined(ESP32) || defined(ARDUINO_ARCH_LINUX)
- #define EEPROM_SIZE             4096
-#endif
+// #if defined(ESP32) || defined(ARDUINO_ARCH_LINUX)
+//  #define EEPROM_SIZE             4096
+// #endif
 
 ///////////////////////////////////
 
@@ -113,7 +118,11 @@
 #include "drive/DomeDriveSabertooth.h"
 #endif
 #ifdef PWM_INPUT_PIN
-#include "encoder/ServoDecoder.h"
+#ifdef ESP32
+ #include "encoder/PWMDecoder.h"
+#else
+ #include "encoder/ServoDecoder.h"
+#endif
 #endif
 #ifdef USE_SERVOS
 #include "ServoDispatchDirect.h"
@@ -140,11 +149,16 @@ public:
         fGPIOExpander(i2cAddress)
     {}
 
+    virtual void begin() override
+    {
+        fGPIOExpander.begin();
+    }
+
     virtual bool digitalRead(uint8_t pin) override
     {
         if (pin >= GPIO_PIN_BASE)
         {
-            return fGPIOExpander.digitalRead(pin, true);
+            return fGPIOExpander.digitalRead(pin-GPIO_PIN_BASE, true);
         }
         return PinManager::digitalRead(pin);
     }
@@ -152,7 +166,7 @@ public:
     {
         if (pin >= GPIO_PIN_BASE)
         {
-            fGPIOExpander.digitalWrite(pin, val);
+            fGPIOExpander.digitalWrite(pin-GPIO_PIN_BASE, val);
         }
         else
         {
@@ -163,7 +177,7 @@ public:
     {
         if (pin >= GPIO_PIN_BASE)
         {
-            fGPIOExpander.pinMode(pin, mode);
+            fGPIOExpander.pinMode(pin-GPIO_PIN_BASE, mode);
         }
         else
         {
@@ -372,7 +386,11 @@ protected:
 };
 DomeDriveEmulator sDomeDrive(sDomeRing, sDomeStick);
 #else
-DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS, DOME_DRIVE_SERIAL, sDomeStick);
+ #ifdef DOME_DRIVE_SOFT_SERIAL
+  #include "SoftwareSerial.h"
+  SoftwareSerial DOME_DRIVE_SERIAL;
+ #endif
+ DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS, DOME_DRIVE_SERIAL, sDomeStick);
 #endif
 
 #ifdef USE_SERVOS
@@ -442,6 +460,46 @@ bool sDomeHasMovedManually = false;
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef PWM_INPUT_PIN
+#ifdef ESP32
+static void pulseInputChanged(int pin, uint16_t pulse)
+{
+    float drive = 0;
+    long min_pulse = sSettings.fPWMMinPulse;
+    long neutral_pulse = sSettings.fPWMNeutralPulse;
+    long max_pulse = sSettings.fPWMMaxPulse;
+    uint8_t deadband = sSettings.fPWMDeadbandPercent;
+    printf("pulse: %d [%d:%d:%d]\n", pulse, int(min_pulse), int(max_pulse), int(neutral_pulse));
+    if (pulse > min_pulse && pulse < max_pulse)
+    {
+        if (pulse < neutral_pulse)
+        {
+            drive = -float(neutral_pulse - pulse) / (neutral_pulse - min_pulse);
+        }
+        else
+        {
+            drive = float(pulse - neutral_pulse) / (max_pulse - neutral_pulse);
+        }
+        if (float(deadband)/100 >= abs(drive))
+        {
+            drive = 0;
+        }
+        else if (!sDomeHasMovedManually)
+        {
+            restoreDomeSettings();
+            sDomeHasMovedManually = true;
+        }
+        printf("DOME: %d\n", int(drive * 100));
+        if (sSettings.fPWMInput)
+            sDomeDrive.driveDome(drive);
+    }
+    else
+    {
+        printf("BAD PULSE\n");
+    }
+}
+
+PWMDecoder pulseInput(pulseInputChanged, PWM_INPUT_PIN);
+#else
 static void pulseInputChanged(uint16_t pulse)
 {
     float drive = 0;
@@ -471,6 +529,7 @@ static void pulseInputChanged(uint16_t pulse)
 }
 
 ServoDecoder pulseInput(PWM_INPUT_PIN, pulseInputChanged);
+#endif
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -565,6 +624,74 @@ static void restoreDomeSettings()
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifdef USE_SCREEN
+void scan_i2c()
+{
+    unsigned nDevices = 0;
+    for (byte address = 1; address < 127; address++)
+    {
+        String name = "<unknown>";
+        Wire.beginTransmission(address);
+        byte error = Wire.endTransmission();
+        if (address == 0x70)
+        {
+            // All call address for PCA9685
+            name = "PCA9685:all";
+        }
+        if (address == 0x40)
+        {
+            // Adafruit PCA9685
+            name = "PCA9685";
+        }
+        if (address == 0x20)
+        {
+            name = "GPIO Expander";
+        }
+        if (address == 0x16)
+        {
+            // PSIPro
+            name = "PSIPro";
+        }
+        if (error == 0)
+        {
+            Serial.print("I2C device found at address 0x");
+            if (address < 16)
+                Serial.print("0");
+            Serial.print(address, HEX);
+            Serial.print(" ");
+            Serial.println(name);
+            nDevices++;
+        }
+        else if (error == 4)
+        {
+            Serial.print("Unknown error at address 0x");
+            if (address < 16)
+                Serial.print("0");
+            Serial.println(address, HEX);
+        }
+    }
+    if (nDevices == 0)
+        Serial.println("No I2C devices found\n");
+    else
+        Serial.println("done\n");
+}
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
+void configureDomeDrive()
+{
+#ifdef DOME_DRIVE_SOFT_SERIAL
+    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SWSERIAL_8N1, RXD2_PIN, TXD2_PIN, false, 0);
+#elif defined(DOME_DRIVE_SERIAL)
+ #ifdef ESP32
+    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, TXD2_PIN);
+ #else
+    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate);
+ #endif
+#endif
+}
+
 void setup()
 {
     REELTWO_READY();
@@ -578,7 +705,7 @@ void setup()
 
     Serial.print(F("Droid Dome Controller - "));
     Serial.println(F(__DATE__));
-#ifdef EEPROM_SIZE
+#ifdef EEPROM_FLASH_PARTITION_NAME
     if (!EEPROM.begin(EEPROM_SIZE))
     {
         Serial.println("Failed to initialize EEPROM");
@@ -598,21 +725,23 @@ void setup()
             Serial.println(F("Readback Success"));
         }
     }
-#ifdef DOME_DRIVE_SERIAL
- #ifdef ESP32
-    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, TXD2_PIN);
- #else
-    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate);
- #endif
-#endif
+    configureDomeDrive();
 #ifdef MARC_SERIAL
     MARC_SERIAL.begin(sSettings.fMarcBaudRate);
 #endif
 
     SetupEvent::ready();
 
+    // N.B.: Must call pinMode() before begin()
+    for (unsigned i = 0; i < SizeOfArray(sDigitalPin); i++)
+    {
+        sPinManager.pinMode(sDigitalPin[i], OUTPUT);
+    }
+    sPinManager.begin();
+
 #ifdef USE_SCREEN
     Wire.begin();
+    scan_i2c();
 #ifndef ESP32
     Wire.setWireTimeout();
 #endif
@@ -762,6 +891,11 @@ static void abortSerialCommand()
 
 bool processDomePositionCommand(const char* cmd)
 {
+    if (!sDomeDrive.idle())
+    {
+        Serial.println(F("MANUAL OVERRIDE. DOME NOT IDLE."));
+        return false;
+    }
     // move mode ends on the next serial command
     switch (*cmd++)
     {
@@ -1065,7 +1199,7 @@ bool processDomePositionCommand(const char* cmd)
             }
             else
             {
-                duration = min(max(duration, 1), 600*1000L);
+                duration = min(max(long(duration), 1L), 600*1000L);
                 Serial.print(F("WAIT MILLIS: ")); Serial.println(duration);
             }
             if (*cmd == '\0')
@@ -1090,7 +1224,17 @@ bool processDomePositionCommand(const char* cmd)
 static void updateSettings()
 {
     restoreDomeSettings();
+#ifdef DOME_DRIVE_SOFT_SERIAL
+    // We must disable software serial on the ESP while updating flash memory
+    // the software serial RX interrupt will otherwise try to access cached memory
+    // while cache is disabled.
+    DOME_DRIVE_SERIAL.end();
+#endif
     sSettings.write();
+#ifdef DOME_DRIVE_SOFT_SERIAL
+    // Reenable software serial.
+    configureDomeDrive();
+#endif
     Serial.println(F("Updated"));
 }
 
@@ -1117,12 +1261,17 @@ float calculateSpeed(unsigned speedPercentage)
     long startTime = millis();
     sDomePosition.setDomeMode(DomePosition::kTarget);
 
+    sDomePosition.resetWatchdog();
     while (sWaitTarget)
     {
         AnimatedEvent::process();
     #ifdef USE_SCREEN
         sDisplay.process();
     #endif
+        if (sDomePosition.isTimeout())
+        {
+            return 0;
+        }
     }
     long stopTime = millis();
     const float domeDiameterInches = 18.25;
@@ -1169,6 +1318,10 @@ void processConfigureCommand(const char* cmd)
         DomeControllerSettings defaultSettings;
         *sSettings.data() = defaultSettings;
         updateSettings();
+    }
+    else if (startswith(cmd, "#DPRESTART"))
+    {
+        ESP.restart();
     }
     else if (startswith(cmd, "#DPCONFIG"))
     {
@@ -1785,84 +1938,88 @@ void loop()
     }
 #ifdef DOME_DRIVE_SERIAL
     static float sLastMotorValue;
-    if (sReadPos == sizeof(sReadBuffer))
-    {
-        byte address = sReadBuffer[0];
-        byte command = sReadBuffer[1];
-        byte value = sReadBuffer[2];
-        byte crc = sReadBuffer[3];
-        byte calcCRC = ((address + command + value) & B01111111);
-        if (address == SYREN_ADDRESS_READ && crc == calcCRC)
-        {
-            // DEBUG_PRINT(address);
-            switch (command)
-            {
-                case 0: /* motor #1 */
-                case 1: /* motor #1 - negative */
-                {
-                    float mval = float(value) / 127.0;
-                    if (command == 1)
-                        mval = -mval;
-                    sLastMotorValue = mval;
-                    if (value == 0)
-                        break;
-                   FALL_THROUGH
-                }
-                case 4: /* motor #2 */
-                case 5: /* motor #2 - negative */
-                    if (value == 0)
-                        break;
-                   FALL_THROUGH
-
-                case 2: /* setMinVoltage */
-                case 3: /* setMaxVoltage */
-                case 8: /* drive */
-                case 9: /* drive - negative */
-                case 10: /* turn */
-                case 11: /* turn - negative */
-                case 14: /* setTimeout */
-                case 15: /* setBaudRate */
-                case 16: /* setRamping */
-                case 17: /* setDeadband */
-                default:
-                    if (!sSerialMotorActivity)
-                    {
-                        DEBUG_PRINTLN(F("Syren Active"));
-                        sSerialMotorActivity = true;
-                    }
-                    // DEBUG_PRINT("["); DEBUG_PRINT(address); DEBUG_PRINT("] ");
-                    // DEBUG_PRINT(command); DEBUG_PRINT(":"); DEBUG_PRINTLN(value);
-                    sLastSerialMotorEvent = millis();
-                    break;
-            }
-            sReadPos = 0;
-        }
-        else
-        {
-            DEBUG_PRINT(F("{BAD}"));
-            DEBUG_PRINT('['); DEBUG_PRINT(address); DEBUG_PRINT(F("] "));
-            DEBUG_PRINT(command); DEBUG_PRINT(':');
-            DEBUG_PRINT(value); DEBUG_PRINT(F(":CRC:"));
-            DEBUG_PRINT_HEX(calcCRC); DEBUG_PRINT(F(":EXPECTED:"));
-            DEBUG_PRINT_HEX(crc);
-            DEBUG_PRINTLN(value);
-            sReadBuffer[0] = sReadBuffer[1];
-            sReadBuffer[1] = sReadBuffer[2];
-            sReadBuffer[2] = sReadBuffer[3];
-            sReadPos = 3;
-        }
-    }
     if (sSettings.fPacketSerialInput)
     {
-        while (DOME_DRIVE_SERIAL.available() && sReadPos < sizeof(sReadBuffer))
+        do
         {
-            sReadBuffer[sReadPos++] = DOME_DRIVE_SERIAL.read();
-            sLastSerialData = millis();
+            if (sReadPos == sizeof(sReadBuffer))
+            {
+                byte address = sReadBuffer[0];
+                byte command = sReadBuffer[1];
+                byte value = sReadBuffer[2];
+                byte crc = sReadBuffer[3];
+                byte calcCRC = ((unsigned(address) + command + value) & B01111111);
+                if (address == SYREN_ADDRESS_READ && crc == calcCRC)
+                {
+                    // DEBUG_PRINT(address);
+                    switch (command)
+                    {
+                        case 0: /* motor #1 */
+                        case 1: /* motor #1 - negative */
+                        {
+                            float mval = float(value) / 127.0;
+                            if (command == 1)
+                                mval = -mval;
+                            sLastMotorValue = mval;
+                            if (value == 0)
+                                break;
+                           FALL_THROUGH
+                        }
+                        case 4: /* motor #2 */
+                        case 5: /* motor #2 - negative */
+                            if (value == 0)
+                                break;
+                           FALL_THROUGH
+
+                        case 2: /* setMinVoltage */
+                        case 3: /* setMaxVoltage */
+                        case 8: /* drive */
+                        case 9: /* drive - negative */
+                        case 10: /* turn */
+                        case 11: /* turn - negative */
+                        case 14: /* setTimeout */
+                        case 15: /* setBaudRate */
+                        case 16: /* setRamping */
+                        case 17: /* setDeadband */
+                        default:
+                            if (!sSerialMotorActivity)
+                            {
+                                DEBUG_PRINTLN(F("Syren Active"));
+                                sSerialMotorActivity = true;
+                            }
+                            // DEBUG_PRINT("["); DEBUG_PRINT(address); DEBUG_PRINT("] ");
+                            // DEBUG_PRINT(command); DEBUG_PRINT(":"); DEBUG_PRINTLN(value);
+                            sLastSerialMotorEvent = millis();
+                            break;
+                    }
+                    sReadPos = 0;
+                }
+                else
+                {
+                    DEBUG_PRINT(F("{BAD}"));
+                    DEBUG_PRINT('['); DEBUG_PRINT(address); DEBUG_PRINT(F("] "));
+                    DEBUG_PRINT(command); DEBUG_PRINT(':');
+                    DEBUG_PRINT(value); DEBUG_PRINT(F(":CRC:"));
+                    DEBUG_PRINT_HEX(crc); DEBUG_PRINT(F(":EXPECTED:"));
+                    DEBUG_PRINT_HEX(calcCRC);
+                    DEBUG_PRINTLN();
+                    sReadBuffer[0] = sReadBuffer[1];
+                    sReadBuffer[1] = sReadBuffer[2];
+                    sReadBuffer[2] = sReadBuffer[3];
+                    sReadPos = 3;
+                }
+            }
+            while (DOME_DRIVE_SERIAL.available() && sReadPos < sizeof(sReadBuffer))
+            {
+                sReadBuffer[sReadPos++] = DOME_DRIVE_SERIAL.read();
+                sLastSerialData = millis();
+            }
         }
+        while (DOME_DRIVE_SERIAL.available());
     }
     if (sSerialMotorActivity && sLastSerialMotorEvent + PACKET_SERIAL_TIMEOUT < millis())
     {
-        DEBUG_PRINTLN(F("Syren Idle"));
+        Serial.println(F("Syren Idle"));
         sSerialMotorActivity = false;
         sLastMotorValue = 0;
     }
@@ -1879,7 +2036,7 @@ void loop()
 #ifdef PWM_INPUT_PIN
     if (sSettings.fPWMInput && pulseInput.becameInactive())
     {
-        DEBUG_PRINTLN(F("No PWM Input"));
+        Serial.println(F("No PWM Input"));
         sDomeDrive.driveDome(0);
     }
 #endif
