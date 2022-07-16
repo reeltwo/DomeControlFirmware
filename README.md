@@ -1,6 +1,12 @@
 # Dome Controller Interface Board
 
-This is the sketch for the Dome Controller Interface Board. It depends on the Adafruit_SSD1306, Adafruit_GFX, and the Reeltwo library. You can download the latest release of the Reeltwo library here: https://github.com/reeltwo/Reeltwo/releases
+This is the sketch for the Roam-A-Dome-Home (RDH) setup. It depends on the Adafruit_SSD1306, Adafruit_GFX, and the Reeltwo library. You can download the latest release of the Reeltwo library here: https://github.com/reeltwo/Reeltwo/releases
+
+The ESP version also depends on the EspSoftwareSerial. You can find the branch useed here: https://github.com/rimim/espsoftwareserial
+
+![Roam-a-dome-home](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/main/images/RDH-PCBs.jpg)
+
+![Wiring diagram for Shadow](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/main/images/RDH-Shadow.png)
 
 [![Uppity Spinner](https://i.vimeocdn.com/video/1432876855-e1a8651d23573b8ac84be2ccedc1b2b981c0a1533f0eff7b665f34ed3dbf8920-d_500x800)](https://vimeo.com/708875980)
 
@@ -25,6 +31,12 @@ Inital setup. Will figure out minimum speed and if inversion is needed.
 *Examples*:
 
     #DPSETUP
+
+`#DPRESTART`:
+Reboot the controller.
+*Examples*:
+
+    #DPRESTART
 
 `#DPL`:
 List all stored sequences
