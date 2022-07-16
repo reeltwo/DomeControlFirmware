@@ -6,11 +6,15 @@ The ESP version also depends on the EspSoftwareSerial. You can find the branch u
 
 ![Roam-a-dome-home](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/main/images/RDH-PCBs.jpg)
 
+## Sample wiring diagram for Shadow based systems
+
 ![Wiring diagram for Shadow](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/main/images/RDH-Shadow.png)
 
-[![Uppity Spinner](https://i.vimeocdn.com/video/1432876855-e1a8651d23573b8ac84be2ccedc1b2b981c0a1533f0eff7b665f34ed3dbf8920-d_500x800)](https://vimeo.com/708875980)
+## Video of RDH in action
 
 Configuration can happen through either the LCD display using the encoder wheel or via serial.
+
+[![RDH](https://i.vimeocdn.com/video/1432876855-e1a8651d23573b8ac84be2ccedc1b2b981c0a1533f0eff7b665f34ed3dbf8920-d_500x800)](https://vimeo.com/708875980)
 
 ## Serial Configuration commands
 
