@@ -1321,7 +1321,14 @@ void processConfigureCommand(const char* cmd)
     }
     else if (startswith(cmd, "#DPRESTART"))
     {
+    #ifdef ESP32
         ESP.restart();
+    #elif defined(REELTWO_AVR)
+        void (*resetArduino)() = NULL;
+        resetArduino();
+    #else
+        Serial.println(F("Restart not supported."));
+    #endif
     }
     else if (startswith(cmd, "#DPCONFIG"))
     {
