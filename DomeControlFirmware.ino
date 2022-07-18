@@ -65,8 +65,8 @@
 
 #define KEY_REPEAT_RATE_MS      500     // Key repeat rate in milliseconds
 
-#define SYREN_ADDRESS           128
-#define SYREN_ADDRESS_READ      129
+#define SYREN_ADDRESS_INPUT     129
+#define SYREN_ADDRESS_OUTPUT    129
 
 #define DOME_SENSOR_SERIAL      Serial1
 #ifdef ESP32
@@ -390,7 +390,7 @@ DomeDriveEmulator sDomeDrive(sDomeRing, sDomeStick);
   #include "SoftwareSerial.h"
   SoftwareSerial DOME_DRIVE_SERIAL;
  #endif
- DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS, DOME_DRIVE_SERIAL, sDomeStick);
+ DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS_OUTPUT, DOME_DRIVE_SERIAL, sDomeStick);
 #endif
 
 #ifdef USE_SERVOS
@@ -405,6 +405,8 @@ struct Channel
 
 struct DomeControllerSettings
 {
+    uint8_t fSaberAddressInput = SYREN_ADDRESS_INPUT;
+    uint8_t fSaberAddressOutput = SYREN_ADDRESS_OUTPUT;
     uint16_t fHomePosition = DEFAULT_HOME_POSITION;
     uint32_t fSaberBaudRate = DEFAULT_SABER_BAUD;
     uint32_t fMarcBaudRate = DEFAULT_MARC_BAUD;
@@ -729,6 +731,9 @@ void setup()
 #ifdef MARC_SERIAL
     MARC_SERIAL.begin(sSettings.fMarcBaudRate);
 #endif
+
+    sDomeDrive.setBaudRate(sSettings.fSaberBaudRate);
+    sDomeDrive.setAddress(sSettings.fSaberAddressOutput);
 
     SetupEvent::ready();
 
@@ -1225,7 +1230,6 @@ static void updateSettings()
 {
     restoreDomeSettings();
 #ifdef DOME_DRIVE_SOFT_SERIAL
-    #error
     // We must disable software serial on the ESP while updating flash memory
     // the software serial RX interrupt will otherwise try to access cached memory
     // while cache is disabled.
@@ -1313,15 +1317,19 @@ bool setupDomeControl()
     return true;
 }
 
+#define UPDATE_SETTING(a,b) { \
+    if (a != b) { a = b; needsUpdate = true; } else { unchanged = true; } }
 void processConfigureCommand(const char* cmd)
 {
-    if (startswith(cmd, "#DPZERO"))
+    bool needsUpdate = false;
+    bool unchanged = false;
+    if (startswith_P(cmd, F("#DPZERO")))
     {
         DomeControllerSettings defaultSettings;
         *sSettings.data() = defaultSettings;
         updateSettings();
     }
-    else if (startswith(cmd, "#DPRESTART"))
+    else if (startswith_P(cmd, F("#DPRESTART")))
     {
     #ifdef ESP32
         ESP.restart();
@@ -1332,7 +1340,7 @@ void processConfigureCommand(const char* cmd)
         Serial.println(F("Restart not supported."));
     #endif
     }
-    else if (startswith(cmd, "#DPCONFIG"))
+    else if (startswith_P(cmd, F("#DPCONFIG")))
     {
         Serial.print(F("HomePos=")); Serial.println(sSettings.fHomePosition);
         Serial.print(F("MaxSpeed=")); Serial.println(sSettings.fMaxSpeed);
@@ -1357,6 +1365,8 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("SpeedHome=")); Serial.println(sSettings.fDomeSpeedHome);
         Serial.print(F("SpeedSeek=")); Serial.println(sSettings.fDomeSpeedSeek);
         Serial.print(F("SpeedTarget=")); Serial.println(sSettings.fDomeSpeedTarget);
+        Serial.print(F("SaberAddressIn=")); Serial.println(sSettings.fSaberAddressInput);
+        Serial.print(F("SaberAddressOut=")); Serial.println(sSettings.fSaberAddressOutput);
         Serial.print(F("SaberBaud=")); Serial.println(sSettings.fSaberBaudRate);
         Serial.print(F("MarcBaud=")); Serial.println(sSettings.fMarcBaudRate);
         Serial.print(F("SerialIn=")); Serial.println(sSettings.fPacketSerialInput);
@@ -1378,114 +1388,99 @@ void processConfigureCommand(const char* cmd)
         }
         Serial.println();
     }
-    else if (startswith(cmd, "#DPSETUP"))
+    else if (startswith_P(cmd, F("#DPSETUP")))
     {
         setupDomeControl();
         restoreDomeSettings();
     }
-    else if (startswith(cmd, "#DPL"))
+    else if (startswith_P(cmd, F("#DPL")))
     {
         sSettings.listSortedCommands(Serial);
         Serial.println(F("Done"));
     }
-    else if (startswith(cmd, "#DPD") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPD")) && isdigit(*cmd))
     {
         int seq = strtolu(cmd, &cmd);
         Serial.println(seq);
         if (sSettings.deleteCommand(seq))
             Serial.println(F("Deleted"));
     }
-    else if (startswith(cmd, "#DPMAXSPEED") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPMAXSPEED")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fMaxSpeed = min(speed, MAX_SPEED);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fMaxSpeed, min(speed, MAX_SPEED));
     }
-    else if (startswith(cmd, "#DPTIMEOUT") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPTIMEOUT")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fTimeout = min(speed, MAX_TIMEOUT);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fTimeout, min(speed, MAX_TIMEOUT));
     }
-    else if (startswith(cmd, "#DPHOMESPEED") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPHOMESPEED")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSpeedHome = min(speed, MAX_SPEED);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSpeedHome, min(speed, MAX_SPEED));
     }
-    else if (startswith(cmd, "#DPSEEKSPEED") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSEEKSPEED")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSpeedSeek = min(speed, MAX_SPEED);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSpeedSeek, min(speed, MAX_SPEED));
     }
-    else if (startswith(cmd, "#DPTARGETSPEED") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPTARGETSPEED")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSpeedTarget = min(speed, MAX_SPEED);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSpeedTarget, min(speed, MAX_SPEED));
     }
-    else if (startswith(cmd, "#DPMINSPEED") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPMINSPEED")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSpeedMin = min(speed, MAX_SPEED);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSpeedMin, min(speed, MAX_SPEED));
     }
-    else if (startswith(cmd, "#DPSEEKLEFT") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSEEKLEFT")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSeekLeft = min(speed, MAX_SEEK_LEFT);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSeekLeft, min(speed, MAX_SEEK_LEFT));
     }
-    else if (startswith(cmd, "#DPSEEKRIGHT") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSEEKRIGHT")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSeekRight = min(speed, MAX_SEEK_RIGHT);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSeekRight, min(speed, MAX_SEEK_RIGHT));
     }
-    else if (startswith(cmd, "#DPSEEKMIN") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSEEKMIN")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSeekMinDelay = min(speed, MAX_SEEK_DELAY);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSeekMinDelay, min(speed, MAX_SEEK_DELAY));
     }
-    else if (startswith(cmd, "#DPSEEKMAX") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSEEKMAX")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeSeekMaxDelay = min(speed, MAX_SEEK_DELAY);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeSeekMaxDelay, min(speed, MAX_SEEK_DELAY));
     }
-    else if (startswith(cmd, "#DPHOMEMIN") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPHOMEMIN")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeHomeMinDelay = min(speed, MAX_SEEK_DELAY);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeHomeMinDelay, min(speed, MAX_SEEK_DELAY));
     }
-    else if (startswith(cmd, "#DPHOMEMAX") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPHOMEMAX")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeHomeMaxDelay = min(speed, MAX_SEEK_DELAY);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeHomeMaxDelay, min(speed, MAX_SEEK_DELAY));
     }
-    else if (startswith(cmd, "#DPTARGETMIN") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPTARGETMIN")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeTargetMinDelay = min(speed, MAX_SEEK_DELAY);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeTargetMinDelay, min(speed, MAX_SEEK_DELAY));
     }
-    else if (startswith(cmd, "#DPTARGETMAX") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPTARGETMAX")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeTargetMaxDelay = min(speed, MAX_SEEK_DELAY);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeTargetMaxDelay, min(speed, MAX_SEEK_DELAY));
     }
-    else if (startswith(cmd, "#DPFUDGE") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPFUDGE")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        sSettings.fDomeFudge = min(speed, MAX_FUDGE_FACTOR);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDomeFudge, min(speed, MAX_FUDGE_FACTOR));
     }
-    else if (startswith(cmd, "#DPHOMEPOS"))
+    else if (startswith_P(cmd, F("#DPHOMEPOS")))
     {
         if (isdigit(*cmd))
         {
@@ -1497,114 +1492,110 @@ void processConfigureCommand(const char* cmd)
             Serial.print(F("\nCURRENT POSITION: ")); Serial.println(sDomePosition.getDomePosition());
             sDomePosition.setDomeHomePosition(sDomePosition.getDomePosition());
         }
-        sSettings.fHomePosition = sDomePosition.getDomeHome();
-        updateSettings();
+        UPDATE_SETTING(sSettings.fHomePosition, sDomePosition.getDomeHome());
     }
-    else if (startswith(cmd, "#DPHOME") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPHOME")) && isdigit(*cmd))
     {
         int mode = strtolu(cmd, &cmd);
-        sSettings.fHomeMode = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fHomeMode, (mode != 0));
     }
-    else if (startswith(cmd, "#DPSEEK") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSEEK")) && isdigit(*cmd))
     {
         int mode = strtolu(cmd, &cmd);
-        sSettings.fRandomMode = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fRandomMode, (mode != 0));
     }
-    else if (startswith(cmd, "#DPSCALE") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSCALE")) && isdigit(*cmd))
     {
         int mode = strtolu(cmd, &cmd);
-        sSettings.fSpeedScaling = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fSpeedScaling, (mode != 0));
     }
-    else if (startswith(cmd, "#DPINVERT") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPINVERT")) && isdigit(*cmd))
     {
         int mode = strtolu(cmd, &cmd);
-        sSettings.fInverted = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fInverted, (mode != 0));
     }
-    else if (startswith(cmd, "#DPAUTOSAFETY") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTOSAFETY")) && isdigit(*cmd))
     {
         int mode = strtolu(cmd, &cmd);
-        sSettings.fAutoSafety = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fAutoSafety, (mode != 0));
     }
-    else if (startswith(cmd, "#DPASCALE") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPASCALE")) && isdigit(*cmd))
     {
         int scale = strtolu(cmd, &cmd);
-        sSettings.fAccScale = min(scale, MAX_ACC_SCALE);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fAccScale, min(scale, MAX_ACC_SCALE));
     }
-    else if (startswith(cmd, "#DPDSCALE") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPDSCALE")) && isdigit(*cmd))
     {
         int scale = strtolu(cmd, &cmd);
-        sSettings.fDecScale = min(scale, MAX_DEC_SCALE);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fDecScale, min(scale, MAX_DEC_SCALE));
     }
-    else if (startswith(cmd, "#DPSERIALIN") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSERIALIN")) && isdigit(*cmd))
     {
         uint32_t mode = strtolu(cmd, &cmd);
-        sSettings.fPacketSerialInput = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fPacketSerialInput, (mode != 0));
     }
-    else if (startswith(cmd, "#DPPWMIN") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPPWMIN")) && isdigit(*cmd))
     {
         uint32_t mode = strtolu(cmd, &cmd);
-        sSettings.fPWMInput = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fPWMInput, (mode != 0));
     }
-    else if (startswith(cmd, "#DPPWMOUT") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPPWMOUT")) && isdigit(*cmd))
     {
         uint32_t mode = strtolu(cmd, &cmd);
-        sSettings.fPWMOutput = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fPWMOutput, (mode != 0));
     }
-    else if (startswith(cmd, "#DPSERIALOUT") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSERIALOUT")) && isdigit(*cmd))
     {
         uint32_t mode = strtolu(cmd, &cmd);
-        sSettings.fPacketSerialOutput = (mode != 0);
-        updateSettings();
+        UPDATE_SETTING(sSettings.fPacketSerialOutput, (mode != 0));
     }
-    else if (startswith(cmd, "#DPMARCBAUD") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPMARCBAUD")) && isdigit(*cmd))
     {
         uint32_t baudrate = strtolu(cmd, &cmd);
         for (unsigned i = 0; i < SizeOfArray(sMarcBaudRates); i++)
         {
             if (baudrate == sMarcBaudRates[i])
             {
-                sSettings.fMarcBaudRate = baudrate;
-                updateSettings();
-                return;
+                UPDATE_SETTING(sSettings.fMarcBaudRate, baudrate);
+                break;
             }
         }
     }
-    else if (startswith(cmd, "#DPSABERBAUD") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSABERBAUD")) && isdigit(*cmd))
     {
         uint32_t baudrate = strtolu(cmd, &cmd);
         for (unsigned i = 0; i < SizeOfArray(sSaberBaudRates); i++)
         {
             if (baudrate == sSaberBaudRates[i])
             {
-                sSettings.fSaberBaudRate = baudrate;
-                updateSettings();
-                return;
+                UPDATE_SETTING(sSettings.fSaberBaudRate, baudrate);
+                break;
             }
         }
     }
-    else if (startswith(cmd, "#DPPIN") && cmd[0] >= '1' && cmd[0] <= '8' && (cmd[1] == '0' || cmd[1] == '1'))
+    else if (startswith_P(cmd, F("#DPSABERADDRIN")) && isdigit(*cmd))
+    {
+        uint32_t addrIn = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fSaberAddressInput, addrIn);
+    }
+    else if (startswith_P(cmd, F("#DPSABERADDROUT")) && isdigit(*cmd))
+    {
+        uint32_t addrOut = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fSaberAddressOutput, addrOut);
+    }
+    else if (startswith_P(cmd, F("#DPPIN")) && cmd[0] >= '1' && cmd[0] <= '8' && (cmd[1] == '0' || cmd[1] == '1'))
     {
         setByteBit(sSettings.fDigitalPins, cmd[0]-1, cmd[1]);
         updateSettings();
     }
-    else if (startswith(cmd, "#DPJOY"))
+    else if (startswith_P(cmd, F("#DPJOY")))
     {
         // Enable serial joystick
         Serial.println(F("Serial Console Joystick Emulation Connected."));
         Serial.println(F("Press END to stop."));
         sDomeStick.connect();
     }
-    else if (startswith(cmd, "#DPS") && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPS")) && isdigit(*cmd))
     {
         uint32_t storeseq = strtolu(cmd, &cmd);
         if (*cmd == ':')
@@ -1814,6 +1805,14 @@ void processConfigureCommand(const char* cmd)
     {
         Serial.println(F("Invalid"));
     }
+    if (needsUpdate)
+    {
+        updateSettings();
+    }
+    if (unchanged)
+    {
+        Serial.println(F("Unchanged"));
+    }
 }
 
 bool processCommand(const char* cmd, bool firstCommand)
@@ -1958,7 +1957,7 @@ void loop()
                 byte value = sReadBuffer[2];
                 byte crc = sReadBuffer[3];
                 byte calcCRC = ((unsigned(address) + command + value) & B01111111);
-                if (address == SYREN_ADDRESS_READ && crc == calcCRC)
+                if (address == sSettings.fSaberAddressInput && crc == calcCRC)
                 {
                     // DEBUG_PRINT(address);
                     switch (command)
