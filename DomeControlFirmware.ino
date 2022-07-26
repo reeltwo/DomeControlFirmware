@@ -84,8 +84,8 @@
 
 ///////////////////////////////////
 #ifdef ESP32
-#define AMIDALA_AUTOMATION_PCB
-//#define LILYGO_MINI32
+//#define AMIDALA_AUTOMATION_PCB
+#define LILYGO_MINI32
 #endif
 #include "pin-map.h"
 
@@ -729,7 +729,11 @@ void setup()
     }
     configureDomeDrive();
 #ifdef MARC_SERIAL
+ #ifdef ESP32
+    MARC_SERIAL.begin(sSettings.fMarcBaudRate, SERIAL_8N1, RXD3_PIN, TXD3_PIN);
+ #else
     MARC_SERIAL.begin(sSettings.fMarcBaudRate);
+ #endif
 #endif
 
     sDomeDrive.setBaudRate(sSettings.fSaberBaudRate);
