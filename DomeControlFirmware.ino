@@ -503,8 +503,8 @@ static void pulseInputChanged(int pin, uint16_t pulse)
         }
         else if (!sDomeHasMovedManually)
         {
-            restoreDomeSettings();
             sDomeHasMovedManually = true;
+            restoreDomeSettings();
         }
         printf("DOME: %d\n", int(drive * 100));
         if (sSettings.fPWMInput)
@@ -539,8 +539,8 @@ static void pulseInputChanged(uint16_t pulse)
     }
     else if (!sDomeHasMovedManually)
     {
-        restoreDomeSettings();
         sDomeHasMovedManually = true; 
+        restoreDomeSettings();
     }
     if (sSettings.fPWMInput)
         sDomeDrive.driveDome(drive);
@@ -2055,8 +2055,8 @@ void loop()
     {
         if (!sDomeHasMovedManually)
         {
-            restoreDomeSettings();
             sDomeHasMovedManually = true; 
+            restoreDomeSettings();
         }
         sDomeDrive.driveDome(sLastMotorValue);
     }
