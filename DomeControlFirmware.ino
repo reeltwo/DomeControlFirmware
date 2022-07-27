@@ -8,7 +8,8 @@
 #define USE_DEBUG                     // Define to enable debug diagnostic
 #define USE_SCREEN                    // Define if using LCD and Rotary encoder
 #undef  USE_SERVOS                    // Define is enabling servo output on digital out pins
-#undef  USE_DOME_DEBUG                // Define for dome motor specific debug
+#define USE_DOME_DEBUG                // Define for dome drive mode debug
+#undef  USE_VERBOSE_DOME_DEBUG        // Define for dome motor specific debug
 #undef  USE_DOME_SENSOR_SERIAL_DEBUG  // Define for dome sensor ring specific debug
 
 #define SETUP_MAX_ANGULAR_VELOCITY      45 /* cm/s */
@@ -366,6 +367,14 @@ public:
         DomeDrive::stop();
     }
 
+    void setBaudRate(unsigned)
+    {
+    }
+
+    void setAddress(uint8_t)
+    {
+    }
+
 protected:
     DomeSensorRingEmulator& fDomeRing;
     virtual void motor(float m) override
@@ -375,7 +384,14 @@ protected:
         float pos = fDomeRing.fDomePositionDegrees;
         if (sLastMotor != m || sLastPos != int(pos))
         {
-            printf("MOTOR %0.2f POS=%d [%d]            \r", m, normalize(pos), int(pos));
+            if (m == 0)
+            {
+                printf("                                   \r");
+            }
+            else
+            {
+                printf("MOTOR %0.2f POS=%d [%d]            \r", m, normalize(pos), int(pos));
+            }
             fflush(stdout);
             // printf("MOTOR %0.2f POS=%d [%d]\n", m, normalize(pos), int(pos));
             sLastMotor = m;
