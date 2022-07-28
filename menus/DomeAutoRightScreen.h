@@ -1,31 +1,31 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Specify the maximum number of degrees to randomly seek left.
+// Specify the maximum number of degrees to randomly seek right.
 // Range is 0 - 180 degrees
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class DomeSeekLeftScreen : public UnsignedValueScreen
+class DomeAutoRightScreen : public UnsignedValueScreen
 {
 public:
-    DomeSeekLeftScreen(ScreenID id = kDomeSeekLeftScreen) :
-        UnsignedValueScreen(id, MAX_SEEK_LEFT)
+    DomeAutoRightScreen(ScreenID id = kDomeAutoRightScreen) :
+        UnsignedValueScreen(id, MAX_AUTO_RIGHT)
     {}
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fDomeSeekLeft;
+        return sSettings.fDomeAutoRight;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fDomeSeekLeft = newValue;
+        sSettings.fDomeAutoRight = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fDomeSeekLeft = newValue;
+        sSettings.fDomeAutoRight = newValue;
         restoreDomeSettings();
         sSettings.write();
     }
@@ -37,4 +37,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-DomeSeekLeftScreen sDomeSeekLeftScreen;
+DomeAutoRightScreen sDomeAutoRightScreen;

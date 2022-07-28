@@ -5,27 +5,27 @@
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class DomeSeekMinDelayScreen : public UnsignedValueScreen
+class DomeAutoMinDelayScreen : public UnsignedValueScreen
 {
 public:
-    DomeSeekMinDelayScreen(ScreenID id = kDomeSeekMinDelayScreen) :
-        UnsignedValueScreen(id, MAX_SEEK_DELAY)
+    DomeAutoMinDelayScreen(ScreenID id = kDomeAutoMinDelayScreen) :
+        UnsignedValueScreen(id, MAX_AUTO_DELAY)
     {}
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fDomeSeekMinDelay;
+        return sSettings.fDomeAutoMinDelay;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fDomeSeekMinDelay = newValue;
+        sSettings.fDomeAutoMinDelay = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fDomeSeekMinDelay = newValue;
+        sSettings.fDomeAutoMinDelay = newValue;
         restoreDomeSettings();
         sSettings.write();
     }
@@ -37,4 +37,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-DomeSeekMinDelayScreen sDomeSeekMinDelayScreen;
+DomeAutoMinDelayScreen sDomeAutoMinDelayScreen;

@@ -1,31 +1,31 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Specify the maximum number of degrees to randomly seek right.
-// Range is 0 - 180 degrees
+// Specify maximum delay in seconds for random seek left/right mode
+// Range is 0 - MAX_SEEK_DELAY (255)
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class DomeSeekRightScreen : public UnsignedValueScreen
+class DomeAutoMaxDelayScreen : public UnsignedValueScreen
 {
 public:
-    DomeSeekRightScreen(ScreenID id = kDomeSeekRightScreen) :
-        UnsignedValueScreen(id, MAX_SEEK_RIGHT)
+    DomeAutoMaxDelayScreen(ScreenID id = kDomeAutoMaxDelayScreen) :
+        UnsignedValueScreen(id, MAX_AUTO_DELAY)
     {}
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fDomeSeekRight;
+        return sSettings.fDomeAutoMaxDelay;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fDomeSeekRight = newValue;
+        sSettings.fDomeAutoMaxDelay = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fDomeSeekRight = newValue;
+        sSettings.fDomeAutoMaxDelay = newValue;
         restoreDomeSettings();
         sSettings.write();
     }
@@ -37,4 +37,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-DomeSeekRightScreen sDomeSeekRightScreen;
+DomeAutoMaxDelayScreen sDomeAutoMaxDelayScreen;

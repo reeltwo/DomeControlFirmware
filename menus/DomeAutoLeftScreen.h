@@ -1,31 +1,32 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Enable/disable dome motor inversion
+// Specify the maximum number of degrees to randomly seek left.
+// Range is 0 - 180 degrees
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class SetInvertedScreen : public ChoiceStrArrayScreen
+class DomeAutoLeftScreen : public UnsignedValueScreen
 {
 public:
-    SetInvertedScreen(ScreenID id = kSetInvertedScreen) :
-        ChoiceStrArrayScreen(id, sOnOffStrings, sBooleanValues, SizeOfArray(sBooleanValues))
-    {
-    }
+    DomeAutoLeftScreen(ScreenID id = kDomeAutoLeftScreen) :
+        UnsignedValueScreen(id, MAX_AUTO_LEFT)
+    {}
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fInverted;
+        return sSettings.fDomeAutoLeft;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fInverted = newValue;
+        sSettings.fDomeAutoLeft = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fInverted = newValue;
+        sSettings.fDomeAutoLeft = newValue;
+        restoreDomeSettings();
         sSettings.write();
     }
 };
@@ -36,4 +37,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-SetInvertedScreen sSetInvertedScreen;
+DomeAutoLeftScreen sDomeAutoLeftScreen;

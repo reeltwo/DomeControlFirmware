@@ -38,15 +38,15 @@
 #define DEFAULT_DECELERATION_SCALE      50
 #define DEFAULT_DOME_HOME_MIN_DELAY     6
 #define DEFAULT_DOME_HOME_MAX_DELAY     8
-#define DEFAULT_DOME_SEEK_MIN_DELAY     6
-#define DEFAULT_DOME_SEEK_MAX_DELAY     8
+#define DEFAULT_DOME_AUTO_MIN_DELAY     6
+#define DEFAULT_DOME_AUTO_MAX_DELAY     8
 #define DEFAULT_DOME_TARGET_MIN_DELAY   0
 #define DEFAULT_DOME_TARGET_MAX_DELAY   1
-#define DEFAULT_DOME_SEEK_LEFT          80
-#define DEFAULT_DOME_SEEK_RIGHT         80
+#define DEFAULT_DOME_AUTO_LEFT          80
+#define DEFAULT_DOME_AUTO_RIGHT         80
 #define DEFAULT_DOME_FUDGE              5
 #define DEFAULT_DOME_SPEED_HOME         40
-#define DEFAULT_DOME_SPEED_SEEK         30
+#define DEFAULT_DOME_SPEED_AUTO         30
 #define DEFAULT_DOME_SPEED_TARGET       100
 #define DEFAULT_DOME_SPEED_MIN          15
 #define DEFAULT_DIGITAL_PINS            0
@@ -55,9 +55,9 @@
 #define MAX_SPEED               100
 #define MAX_SPEED_F             float(MAX_SPEED)
 #define MAX_FUDGE_FACTOR        20
-#define MAX_SEEK_LEFT           180
-#define MAX_SEEK_RIGHT          180
-#define MAX_SEEK_DELAY          255
+#define MAX_AUTO_LEFT           180
+#define MAX_AUTO_RIGHT          180
+#define MAX_AUTO_DELAY          255
 #define MAX_ACC_SCALE           255
 #define MAX_DEC_SCALE           255
 #define MAX_TIMEOUT             30
@@ -438,17 +438,17 @@ struct DomeControllerSettings
     uint8_t fPWMDeadbandPercent = DEFAULT_PWM_DEADBAND;
     uint8_t fAccScale = DEFAULT_ACCELERATION_SCALE;
     uint8_t fDecScale = DEFAULT_DECELERATION_SCALE; 
-    uint8_t fDomeSeekMinDelay = DEFAULT_DOME_SEEK_MIN_DELAY;
-    uint8_t fDomeSeekMaxDelay = DEFAULT_DOME_SEEK_MAX_DELAY;
+    uint8_t fDomeAutoMinDelay = DEFAULT_DOME_AUTO_MIN_DELAY;
+    uint8_t fDomeAutoMaxDelay = DEFAULT_DOME_AUTO_MAX_DELAY;
     uint8_t fDomeHomeMinDelay = DEFAULT_DOME_HOME_MIN_DELAY;
     uint8_t fDomeHomeMaxDelay = DEFAULT_DOME_HOME_MAX_DELAY;
     uint8_t fDomeTargetMinDelay = DEFAULT_DOME_TARGET_MIN_DELAY;
     uint8_t fDomeTargetMaxDelay = DEFAULT_DOME_TARGET_MAX_DELAY;
-    uint8_t fDomeSeekLeft = DEFAULT_DOME_SEEK_LEFT;
-    uint8_t fDomeSeekRight = DEFAULT_DOME_SEEK_RIGHT;
+    uint8_t fDomeAutoLeft = DEFAULT_DOME_AUTO_LEFT;
+    uint8_t fDomeAutoRight = DEFAULT_DOME_AUTO_RIGHT;
     uint8_t fDomeFudge = DEFAULT_DOME_FUDGE;
     uint8_t fDomeSpeedHome = DEFAULT_DOME_SPEED_HOME;
-    uint8_t fDomeSpeedSeek = DEFAULT_DOME_SPEED_SEEK;
+    uint8_t fDomeSpeedAuto = DEFAULT_DOME_SPEED_AUTO;
     uint8_t fDomeSpeedTarget = DEFAULT_DOME_SPEED_TARGET;
     uint8_t fDomeSpeedMin = DEFAULT_DOME_SPEED_MIN;
     uint8_t fDigitalPins = DEFAULT_DIGITAL_PINS;
@@ -588,11 +588,11 @@ static void restoreDomeSettings()
     sDomeDrive.setThrottleDecelerationScale(sSettings.fDecScale);
     sDomePosition.setTimeout(sSettings.fTimeout);
     sDomePosition.setDomeHomePosition(sSettings.fHomePosition);
-    sDomePosition.setDomeSeekMinDelay(sSettings.fDomeSeekMinDelay);
-    sDomePosition.setDomeSeekMaxDelay(sSettings.fDomeSeekMaxDelay);
-    sDomePosition.setDomeSeekLeftDegrees(sSettings.fDomeSeekLeft);
-    sDomePosition.setDomeSeekRightDegrees(sSettings.fDomeSeekRight);
-    sDomePosition.setDomeSeekSpeed(sSettings.fDomeSpeedSeek);
+    sDomePosition.setDomeAutoMinDelay(sSettings.fDomeAutoMinDelay);
+    sDomePosition.setDomeAutoMaxDelay(sSettings.fDomeAutoMaxDelay);
+    sDomePosition.setDomeAutoLeftDegrees(sSettings.fDomeAutoLeft);
+    sDomePosition.setDomeAutoRightDegrees(sSettings.fDomeAutoRight);
+    sDomePosition.setDomeAutoSpeed(sSettings.fDomeSpeedAuto);
 
     sDomePosition.setDomeHomeSpeed(sSettings.fDomeSpeedHome);
     sDomePosition.setDomeHomeMinDelay(sSettings.fDomeHomeMinDelay);
@@ -607,7 +607,7 @@ static void restoreDomeSettings()
     if (sSettings.fAutoSafety && !sDomeHasMovedManually)
     {
         if (sSettings.fRandomMode)
-            DEBUG_PRINTLN(F("AUTO SAFETY PREVENTED RANDOM SEEK MODE"));
+            DEBUG_PRINTLN(F("AUTO SAFETY PREVENTED AUTO SEEK MODE"));
         else if (sSettings.fHomeMode)
             DEBUG_PRINTLN(F("AUTO SAFETY PREVENTED HOME MODE"));
     }
@@ -835,14 +835,12 @@ static const char* sOnOffStrings[] = {
 #include "menus/DomeHomeMinDelayScreen.h"
 #include "menus/DomeHomeSpeedScreen.h"
 #include "menus/DomeMinSpeedScreen.h"
-#include "menus/DomeSeekLeftScreen.h"
-#include "menus/DomeSeekMaxDelayScreen.h"
-#include "menus/DomeSeekMinDelayScreen.h"
-#include "menus/DomeSeekRightScreen.h"
-#include "menus/DomeSeekSpeedScreen.h"
+#include "menus/DomeAutoLeftScreen.h"
+#include "menus/DomeAutoMaxDelayScreen.h"
+#include "menus/DomeAutoMinDelayScreen.h"
+#include "menus/DomeAutoRightScreen.h"
+#include "menus/DomeAutoSpeedScreen.h"
 #include "menus/DomeSpeedScreen.h"
-#include "menus/DomeTargetMaxDelayScreen.h"
-#include "menus/DomeTargetMinDelayScreen.h"
 #include "menus/EraseSettingsScreen.h"
 #include "menus/HomeModeScreen.h"
 #include "menus/MainScreen.h"
@@ -853,19 +851,13 @@ static const char* sOnOffStrings[] = {
 #include "menus/RotateDomeScreen.h"
 #include "menus/SaberBaudRateScreen.h"
 #include "menus/SelectScreen.h"
-#include "menus/SetAccScaleScreen.h"
-#include "menus/SetAutoSafetyScreen.h"
 #include "menus/SetDeadbandPercentScreen.h"
-#include "menus/SetDecScaleScreen.h"
 #include "menus/SetHomeScreen.h"
-#include "menus/SetInvertedScreen.h"
 #include "menus/SetMaxPulseScreen.h"
 #include "menus/SetMinPulseScreen.h"
 #include "menus/SetNeutralPulseScreen.h"
 #include "menus/SetPWMInputScreen.h"
 #include "menus/SetPWMOutputScreen.h"
-#include "menus/SetSpeedScalingScreen.h"
-#include "menus/SetTimeoutScreen.h"
 #include "menus/SettingsScreen.h"
 #include "menus/SettingsUpdatedScreen.h"
 #include "menus/SplashScreen.h"
@@ -1360,7 +1352,7 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("HomePos=")); Serial.println(sSettings.fHomePosition);
         Serial.print(F("MaxSpeed=")); Serial.println(sSettings.fMaxSpeed);
         Serial.print(F("MinSpeed=")); Serial.println(sSettings.fDomeSpeedMin);
-        Serial.print(F("SeekMode=")); Serial.println(sSettings.fRandomMode);
+        Serial.print(F("AutoMode=")); Serial.println(sSettings.fRandomMode);
         Serial.print(F("HomeMode=")); Serial.println(sSettings.fHomeMode);
         Serial.print(F("Scaling=")); Serial.println(sSettings.fSpeedScaling);
         Serial.print(F("Inverted=")); Serial.println(sSettings.fInverted);
@@ -1370,15 +1362,15 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("DecelerationScale=")); Serial.println(sSettings.fDecScale);
         Serial.print(F("HomeMinDelay=")); Serial.println(sSettings.fDomeHomeMinDelay);
         Serial.print(F("HomeMaxDelay=")); Serial.println(sSettings.fDomeHomeMaxDelay);
-        Serial.print(F("SeekMinDelay=")); Serial.println(sSettings.fDomeSeekMinDelay);
-        Serial.print(F("SeekMaxDelay=")); Serial.println(sSettings.fDomeSeekMaxDelay);
+        Serial.print(F("AutoMinDelay=")); Serial.println(sSettings.fDomeAutoMinDelay);
+        Serial.print(F("AutoMaxDelay=")); Serial.println(sSettings.fDomeAutoMaxDelay);
         Serial.print(F("TargetMinDelay=")); Serial.println(sSettings.fDomeTargetMinDelay);
         Serial.print(F("TargetMaxDelay=")); Serial.println(sSettings.fDomeTargetMaxDelay);
-        Serial.print(F("SeekLeft=")); Serial.println(sSettings.fDomeSeekLeft);
-        Serial.print(F("SeekRight=")); Serial.println(sSettings.fDomeSeekRight);
+        Serial.print(F("AutoLeft=")); Serial.println(sSettings.fDomeAutoLeft);
+        Serial.print(F("AutoRight=")); Serial.println(sSettings.fDomeAutoRight);
         Serial.print(F("Fudge=")); Serial.println(sSettings.fDomeFudge);
         Serial.print(F("SpeedHome=")); Serial.println(sSettings.fDomeSpeedHome);
-        Serial.print(F("SpeedSeek=")); Serial.println(sSettings.fDomeSpeedSeek);
+        Serial.print(F("SpeedAuto=")); Serial.println(sSettings.fDomeSpeedAuto);
         Serial.print(F("SpeedTarget=")); Serial.println(sSettings.fDomeSpeedTarget);
         Serial.print(F("SaberAddressIn=")); Serial.println(sSettings.fSaberAddressInput);
         Serial.print(F("SaberAddressOut=")); Serial.println(sSettings.fSaberAddressOutput);
@@ -1435,10 +1427,10 @@ void processConfigureCommand(const char* cmd)
         int speed = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fDomeSpeedHome, min(speed, MAX_SPEED));
     }
-    else if (startswith_P(cmd, F("#DPSEEKSPEED")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTOSPEED")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeSpeedSeek, min(speed, MAX_SPEED));
+        UPDATE_SETTING(sSettings.fDomeSpeedAuto, min(speed, MAX_SPEED));
     }
     else if (startswith_P(cmd, F("#DPTARGETSPEED")) && isdigit(*cmd))
     {
@@ -1450,45 +1442,45 @@ void processConfigureCommand(const char* cmd)
         int speed = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fDomeSpeedMin, min(speed, MAX_SPEED));
     }
-    else if (startswith_P(cmd, F("#DPSEEKLEFT")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("DPAUTOLEFT")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeSeekLeft, min(speed, MAX_SEEK_LEFT));
+        UPDATE_SETTING(sSettings.fDomeAutoLeft, min(speed, MAX_AUTO_LEFT));
     }
-    else if (startswith_P(cmd, F("#DPSEEKRIGHT")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("DPAUTORIGHT")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeSeekRight, min(speed, MAX_SEEK_RIGHT));
+        UPDATE_SETTING(sSettings.fDomeAutoRight, min(speed, MAX_AUTO_RIGHT));
     }
-    else if (startswith_P(cmd, F("#DPSEEKMIN")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("DPAUTOMIN")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeSeekMinDelay, min(speed, MAX_SEEK_DELAY));
+        UPDATE_SETTING(sSettings.fDomeAutoMinDelay, min(speed, MAX_AUTO_DELAY));
     }
-    else if (startswith_P(cmd, F("#DPSEEKMAX")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("DPAUTOMAX")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeSeekMaxDelay, min(speed, MAX_SEEK_DELAY));
+        UPDATE_SETTING(sSettings.fDomeAutoMaxDelay, min(speed, MAX_AUTO_DELAY));
     }
     else if (startswith_P(cmd, F("#DPHOMEMIN")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeHomeMinDelay, min(speed, MAX_SEEK_DELAY));
+        UPDATE_SETTING(sSettings.fDomeHomeMinDelay, min(speed, MAX_AUTO_DELAY));
     }
     else if (startswith_P(cmd, F("#DPHOMEMAX")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeHomeMaxDelay, min(speed, MAX_SEEK_DELAY));
+        UPDATE_SETTING(sSettings.fDomeHomeMaxDelay, min(speed, MAX_AUTO_DELAY));
     }
     else if (startswith_P(cmd, F("#DPTARGETMIN")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeTargetMinDelay, min(speed, MAX_SEEK_DELAY));
+        UPDATE_SETTING(sSettings.fDomeTargetMinDelay, min(speed, MAX_AUTO_DELAY));
     }
     else if (startswith_P(cmd, F("#DPTARGETMAX")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDomeTargetMaxDelay, min(speed, MAX_SEEK_DELAY));
+        UPDATE_SETTING(sSettings.fDomeTargetMaxDelay, min(speed, MAX_AUTO_DELAY));
     }
     else if (startswith_P(cmd, F("#DPFUDGE")) && isdigit(*cmd))
     {
@@ -1514,7 +1506,7 @@ void processConfigureCommand(const char* cmd)
         int mode = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fHomeMode, (mode != 0));
     }
-    else if (startswith_P(cmd, F("#DPSEEK")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTO")) && isdigit(*cmd))
     {
         int mode = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fRandomMode, (mode != 0));
@@ -1667,7 +1659,7 @@ void processConfigureCommand(const char* cmd)
                             else
                             {
                                 speed = strtolu(cmd+1, &cmd);
-                                speed = max(min(max(int(speed), 0), 100), int(sSettings.fDomeSpeedSeek));
+                                speed = max(min(max(int(speed), 0), 100), int(sSettings.fDomeSpeedAuto));
                             }
                         }
                         // optional maxspeed

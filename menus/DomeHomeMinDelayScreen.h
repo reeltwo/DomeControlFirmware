@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Specify minimum delay in seconds for home mode
-// Range is 0 - MAX_SEEK_DELAY (255)
+// Range is 0 - MAX_AUTO_DELAY (255)
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -9,7 +9,7 @@ class DomeHomeMinDelayScreen : public UnsignedValueScreen
 {
 public:
     DomeHomeMinDelayScreen(ScreenID id = kDomeHomeMinDelayScreen) :
-        UnsignedValueScreen(id, MAX_SEEK_DELAY)
+        UnsignedValueScreen(id, MAX_AUTO_DELAY)
     {}
 
 protected:

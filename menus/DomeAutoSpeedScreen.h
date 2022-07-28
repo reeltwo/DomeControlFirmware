@@ -4,27 +4,27 @@
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class DomeSeekSpeedScreen : public UnsignedValueScreen
+class DomeAutoSpeedScreen : public UnsignedValueScreen
 {
 public:
-    DomeSeekSpeedScreen(ScreenID id = kDomeSeekSpeedScreen) :
+    DomeAutoSpeedScreen(ScreenID id = kDomeAutoSpeedScreen) :
         UnsignedValueScreen(id, MAX_SPEED)
     {}
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fDomeSpeedSeek;
+        return sSettings.fDomeSpeedAuto;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fDomeSpeedSeek = newValue;
+        sSettings.fDomeSpeedAuto = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fDomeSpeedSeek = newValue;
+        sSettings.fDomeSpeedAuto = newValue;
         restoreDomeSettings();
         sSettings.write();
     }
@@ -36,4 +36,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-DomeSeekSpeedScreen sDomeSeekSpeedScreen;
+DomeAutoSpeedScreen sDomeAutoSpeedScreen;

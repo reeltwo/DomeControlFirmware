@@ -8,7 +8,7 @@ static const char* sSettingsMenu[] = {
     "Set Home\nPosition",
     "Set Max\nSpeed",
     "Set Home\nSpeed",
-    "Set Seek\nSpeed",
+    "Set Auto\nSpeed",
     "Set Target\nSpeed",
     "Set Min\nSpeed",
     "Set Random\nLeft Dgr",
@@ -18,14 +18,7 @@ static const char* sSettingsMenu[] = {
     "Set Random\nMax Delay",
     "Set Home\nMin Delay",
     "Set Home\nMax Delay",
-    "Set Target\nMin Delay",
-    "Set Target\nMax Delay",
-    "Set Invert\nMotor",
-    "Set Timeout\nDelay",
     "Set Auto\nSafety",
-    "Set Scale\nSpeed",
-    "Set Acc\nScale",
-    "Set Dec\nScale",
     "Marc Baud\nRate",
     "Saber Baud\nRate",
     "Set Packet\nSerial In",
@@ -46,24 +39,17 @@ public:
         kSetHomePosition,
         kSetDomeSpeed,
         kSetHomeSpeed,
-        kSetSeekSpeed,
+        kSetAutoSpeed,
         kSetTargetSpeed,
         kSetMinSpeed,
-        kSetSeekLeft,
-        kSetSeekRight,
+        kSetAutoLeft,
+        kSetAutoRight,
         kSetFudge,
-        kSetSeekMinDelay,
-        kSetSeekMaxDelay,
+        kSetAutoMinDelay,
+        kSetAutoMaxDelay,
         kSetHomeMinDelay,
         kSetHomeMaxDelay,
-        kSetTargetMinDelay,
-        kSetTargetMaxDelay,
-        kSetInvertMotor,
-        kSetTimeout,
         kSetAutoSafety,
-        kSetScaleSpeed,
-        kSetAccScale,
-        kSetDecScale,
         kSetMarcBaudRate,
         kSetSaberBaudRate,
         kSetPacketSerialInput,
@@ -93,8 +79,8 @@ public:
             case kSetHomeSpeed:
                 pushScreen(kDomeHomeSpeedScreen);
                 break;
-            case kSetSeekSpeed:
-                pushScreen(kDomeSeekSpeedScreen);
+            case kSetAutoSpeed:
+                pushScreen(kDomeAutoSpeedScreen);
                 break;
             case kSetTargetSpeed:
                 pushScreen(kDomeTargetSpeedScreen);
@@ -102,20 +88,20 @@ public:
             case kSetMinSpeed:
                 pushScreen(kDomeMinSpeedScreen);
                 break;
-            case kSetSeekLeft:
-                pushScreen(kDomeSeekLeftScreen);
+            case kSetAutoLeft:
+                pushScreen(kDomeAutoLeftScreen);
                 break;
-            case kSetSeekRight:
-                pushScreen(kDomeSeekRightScreen);
+            case kSetAutoRight:
+                pushScreen(kDomeAutoRightScreen);
                 break;
             case kSetFudge:
                 pushScreen(kDomeFudgeScreen);
                 break;
-            case kSetSeekMinDelay:
-                pushScreen(kDomeSeekMinDelayScreen);
+            case kSetAutoMinDelay:
+                pushScreen(kDomeAutoMinDelayScreen);
                 break;
-            case kSetSeekMaxDelay:
-                pushScreen(kDomeSeekMaxDelayScreen);
+            case kSetAutoMaxDelay:
+                pushScreen(kDomeAutoMaxDelayScreen);
                 break;
             case kSetHomeMinDelay:
                 pushScreen(kDomeHomeMinDelayScreen);
@@ -123,29 +109,8 @@ public:
             case kSetHomeMaxDelay:
                 pushScreen(kDomeHomeMaxDelayScreen);
                 break;
-            case kSetTargetMinDelay:
-                pushScreen(kDomeTargetMinDelayScreen);
-                break;
-            case kSetTargetMaxDelay:
-                pushScreen(kDomeTargetMaxDelayScreen);
-                break;
-            case kSetInvertMotor:
-                pushScreen(kSetInvertedScreen);
-                break;
-            case kSetTimeout:
-                pushScreen(kSetTimeoutScreen);
-                break;
             case kSetAutoSafety:
                 pushScreen(kSetAutoSafetyScreen);
-                break;
-            case kSetScaleSpeed:
-                pushScreen(kSetSpeedScalingScreen);
-                break;
-            case kSetAccScale:
-                pushScreen(kSetAccScaleScreen);
-                break;
-            case kSetDecScale:
-                pushScreen(kSetDecScaleScreen);
                 break;
             case kSetMarcBaudRate:
                 pushScreen(kMarcBaudRateScreen);
