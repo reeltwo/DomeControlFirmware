@@ -129,11 +129,6 @@
 #include "ServoDispatchDirect.h"
 #include "ServoEasing.h"
 #endif
-#ifdef USE_SCREEN
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include "encoder/AnoRotaryEncoder.h"
-#endif
 
 ///////////////////////////////////
 
@@ -204,8 +199,8 @@ PinManager sPinManager;
 #define SCREEN_ADDRESS 0x3C
 
 #include "Screens.h"
-#include "CommandScreen.h"
-#include "CommandScreenHandlerSSD1306.h"
+#include "menus/CommandScreen.h"
+#include "menus/CommandScreenHandlerSSD1306.h"
 
 CommandScreenHandlerSSD1306 sDisplay(sPinManager);
 

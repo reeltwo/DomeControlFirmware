@@ -85,6 +85,8 @@
 
 #elif defined(LILYGO_MINI32)
 
+#define PWM_INPUT_PIN           36   // PWM Input Pin (Stealth or other PWM based dome control)
+
 #ifdef USE_SCREEN
  #define PIN_ENCODER_A          2    // Rotary encoder pin A
  #define PIN_ENCODER_B          4    // Rotary encoder pin A
