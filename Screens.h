@@ -24,7 +24,7 @@ enum ScreenID
     kDomeHomeMinDelayScreen, 
     kSetAutoSafetyScreen,
     kSaberBaudRateScreen,
-    kMarcBaudRateScreen,
+    kSerialBaudRateScreen,
     kPacketSerialInputScreen,
     kPacketSerialOutputScreen,
     kSetPWMOutputScreen,

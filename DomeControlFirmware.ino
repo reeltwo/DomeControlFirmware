@@ -17,7 +17,7 @@
 #define SETUP_VELOCITY_INCREMENT        10
 #define DEFAULT_HOME_POSITION           0
 #define DEFAULT_SABER_BAUD              9600
-#define DEFAULT_MARC_BAUD               9600
+#define DEFAULT_SERIAL_BAUD             9600
 #define DEFAULT_PACKET_SERIAL_INPUT     true
 #define DEFAULT_PACKET_SERIAL_OUTPUT    true
 #define DEFAULT_PWM_INPUT               false
@@ -420,7 +420,7 @@ struct DomeControllerSettings
     uint8_t fSaberAddressOutput = SYREN_ADDRESS_OUTPUT;
     uint16_t fHomePosition = DEFAULT_HOME_POSITION;
     uint32_t fSaberBaudRate = DEFAULT_SABER_BAUD;
-    uint32_t fMarcBaudRate = DEFAULT_MARC_BAUD;
+    uint32_t fSerialBaudRate = DEFAULT_SERIAL_BAUD;
     bool fPacketSerialInput = DEFAULT_PACKET_SERIAL_INPUT;
     bool fPacketSerialOutput = DEFAULT_PACKET_SERIAL_OUTPUT;
     bool fPWMInput = DEFAULT_PWM_INPUT;
@@ -739,11 +739,11 @@ void setup()
         }
     }
     configureDomeDrive();
-#ifdef MARC_SERIAL
+#ifdef COMMAND_SERIAL
  #ifdef ESP32
-    MARC_SERIAL.begin(sSettings.fMarcBaudRate, SERIAL_8N1, RXD3_PIN, TXD3_PIN);
+    COMMAND_SERIAL.begin(sSettings.fSerialBaudRate, SERIAL_8N1, RXD3_PIN, TXD3_PIN);
  #else
-    MARC_SERIAL.begin(sSettings.fMarcBaudRate);
+    COMMAND_SERIAL.begin(sSettings.fSerialBaudRate);
  #endif
 #endif
 
@@ -794,7 +794,7 @@ static uint32_t sLastSerialMotorEvent;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static unsigned sMarcBaudRates[] = {
+static unsigned sSerialBaudRates[] = {
     2400,
     9600,
     19200,
@@ -844,7 +844,7 @@ static const char* sOnOffStrings[] = {
 #include "menus/EraseSettingsScreen.h"
 #include "menus/HomeModeScreen.h"
 #include "menus/MainScreen.h"
-#include "menus/MarcBaudRateScreen.h"
+#include "menus/SerialBaudRateScreen.h"
 #include "menus/PacketSerialInputScreen.h"
 #include "menus/PacketSerialOutputScreen.h"
 #include "menus/RandomModeScreen.h"
@@ -1375,7 +1375,7 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("SaberAddressIn=")); Serial.println(sSettings.fSaberAddressInput);
         Serial.print(F("SaberAddressOut=")); Serial.println(sSettings.fSaberAddressOutput);
         Serial.print(F("SaberBaud=")); Serial.println(sSettings.fSaberBaudRate);
-        Serial.print(F("MarcBaud=")); Serial.println(sSettings.fMarcBaudRate);
+        Serial.print(F("SerialBaud=")); Serial.println(sSettings.fSerialBaudRate);
         Serial.print(F("SerialIn=")); Serial.println(sSettings.fPacketSerialInput);
         Serial.print(F("SerialOut=")); Serial.println(sSettings.fPacketSerialOutput);
         Serial.print(F("PWMIn=")); Serial.println(sSettings.fPWMInput);
@@ -1556,14 +1556,14 @@ void processConfigureCommand(const char* cmd)
         uint32_t mode = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fPacketSerialOutput, (mode != 0));
     }
-    else if (startswith_P(cmd, F("#DPMARCBAUD")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSERIALBAUD")) && isdigit(*cmd))
     {
         uint32_t baudrate = strtolu(cmd, &cmd);
-        for (unsigned i = 0; i < SizeOfArray(sMarcBaudRates); i++)
+        for (unsigned i = 0; i < SizeOfArray(sSerialBaudRates); i++)
         {
-            if (baudrate == sMarcBaudRates[i])
+            if (baudrate == sSerialBaudRates[i])
             {
-                UPDATE_SETTING(sSettings.fMarcBaudRate, baudrate);
+                UPDATE_SETTING(sSettings.fSerialBaudRate, baudrate);
                 break;
             }
         }
@@ -1874,11 +1874,11 @@ void loop()
             sBuffer[sPos] = '\0';
         }
     }
-#ifdef MARC_SERIAL
-    // Marcduino commands are processed in the same buffer as the console serial
-    if (MARC_SERIAL.available())
+#ifdef COMMAND_SERIAL
+    // Serial commands are processed in the same buffer as the console serial
+    if (COMMAND_SERIAL.available())
     {
-        int ch = MARC_SERIAL.read();
+        int ch = COMMAND_SERIAL.read();
         if (ch == 0x0A || ch == 0x0D)
         {
             runSerialCommand();

@@ -66,14 +66,14 @@ Set dome home mode speed 0-100 (default 40)
 
     #DPHOMESPEED40 (set dome home speed to 40)
 
-`#DPSEEKSPEED`[number]:
-Set dome random mode seek speed 0-100 (default 30)
+`#DPAUTOSPEED`[number]:
+Set dome random mode auto speed 0-100 (default 30)
 *Examples*:
 
-    #DPSEEKSPEED35 (set dome seek speed to 35)
+    #DPAUTOSPEED35 (set dome auto speed to 35)
 
 `#DPTARGETSPEED`[number]:
-Set dome target mode seek speed 0-100 (default 100)
+Set dome target mode auto speed 0-100 (default 100)
 *Examples*:
 
     #DPTARGETSPEED65 (set dome target speed to 65)
@@ -84,29 +84,29 @@ Set dome minimum speed 0-100 (default 15)
 
     #DPMINSPEED15 (set dome minimum speed to 15)
 
-`#DPSEEKLEFT`[number]:
-Set dome maximum distance to seek left 0-180 (default 80)
+`#DPAUTOLEFT`[number]:
+Set dome maximum distance to auto left 0-180 (default 80)
 *Examples*:
 
-    #DPSEEKLEFT80 (set dome seek left distance to 80)
+    #DPAUTOLEFT80 (set dome auto left distance to 80)
 
-`#DPSEEKRIGHT`[number]:
-Set dome maximum distance to seek right 0-180 (default 80)
+`#DPAUTORIGHT`[number]:
+Set dome maximum distance to auto right 0-180 (default 80)
 *Examples*:
 
-    #DPSEEKRIGHT80 (set dome seek left distance to 80)
+    #DPAUTORIGHT80 (set dome auto left distance to 80)
 
-`#DPSEEKMIN`[number]:
-Set random seek mode minimum delay in seconds (default 6)
+`#DPAUTOMIN`[number]:
+Set random auto mode minimum delay in seconds (default 6)
 *Examples*:
 
-    #DPSEEKMIN6 (set minimum random mode delay to 6 seconds)
+    #DPAUTOMIN6 (set minimum random mode delay to 6 seconds)
 
-`#DPSEEKMAX`[number]:
-Set random seek mode maximum delay in seconds (default 8)
+`#DPAUTOMAX`[number]:
+Set random auto mode maximum delay in seconds (default 8)
 *Examples*:
 
-    #DPSEEKMAX8 (set maximum random mode delay to 8 seconds)
+    #DPAUTOMAX8 (set maximum random mode delay to 8 seconds)
 
 `#DPHOMEMIN`[number]:
 Set home mode minimum delay in seconds (default 6)
@@ -127,7 +127,7 @@ Set target mode minimum delay in seconds (default 0)
     #DPTARGETMIN6 (set minimum target mode delay to 6 seconds)
 
 `#DPTARGETMAX`[number]:
-Set target seek mode maximum delay in seconds (default 1)
+Set target mode maximum delay in seconds (default 1)
 *Examples*:
 
     #DPTARGETMAX8 (set maximum random mode delay to 8 seconds)
@@ -152,12 +152,12 @@ Enable/disable dome home mode 0 or 1 (default disabled 0)
     #DPHOME0 (disable dome home mode)
     #DPHOME1 (enable dome home mode)
 
-`#DPSEEK`[number]:
-Enable/disable dome random seek mode 0 or 1 (default disabled 0)
+`#DPAUTO`[number]:
+Enable/disable dome random auto mode 0 or 1 (default disabled 0)
 *Examples*:
 
-    #DPSEEK0 (disable dome random seek mode)
-    #DPSEEK1 (enable dome random seek mode)
+    #DPAUTO0 (disable dome random auto mode)
+    #DPAUTO1 (enable dome random auto mode)
 
 `#DPSCALE`[number]:
 Enable/disable dome speed scaling/ramping (default disabled 0)
@@ -226,11 +226,11 @@ Enable/disable PWM output 0 or 1 (default disabled 0)
     #DPPWMOUT0 (disable PWM output)
     #DPPWMOUT1 (enable PWM output)
 
-`#DPMARCBAUD`[number]:
-Specify Marcduino serial baud rate 2400,9600,19200,384000 (default 9600)
+`#DPSERIALBAUD`[number]:
+Specify command serial baud rate 2400,9600,19200,384000 (default 9600)
 *Examples*:
 
-    #DPMARCBAUD9600 (set Marcduino baud rate to 9600)
+    #DPSERIALBAUD9600 (set command Serial baud rate to 9600)
 
 `#DPPIN`[pin][number]:
 Specify default value (0,1) for pin (1-8)

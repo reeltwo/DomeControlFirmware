@@ -38,7 +38,7 @@
 #define SENSOR9_PIN             A8   // Optical Sensor Input Pin 9
 #define SENSOROUT_PIN           A9   // Analog Sensor Output Pin
 
-#define MARC_SERIAL             Serial3  // Use HardwareSerial3 for Marcduino commands
+#define COMMAND_SERIAL          Serial3  // Use HardwareSerial3 for Serial commands
 
 #elif defined(AMIDALA_AUTOMATION_PCB)
 
@@ -58,8 +58,8 @@
 #define TXD1_PIN                0	 // unused
 #define RXD2_PIN                17	 // Syren input from droid controller (Shadow/Padawan)
 #define TXD2_PIN                16   // Syren output from Roam-a-dome
-#define RXD3_PIN                32   // Marcduino input (receive)
-#define TXD3_PIN                4    // Marcduino output (send)
+#define RXD3_PIN                32   // Command Serial input (receive)
+#define TXD3_PIN                4    // Command Serial output (send)
 
 #define EXPAND_INT_PIN          13   // GPIO Expander interrupt pin
 #define PPMIN_RC_PIN            14   // PPM RC Input Pin
@@ -81,7 +81,7 @@
 #define DOUT2_PIN          		GPIO_PIN_BASE+6   // Digital Output pin 2
 #define DOUT3_PIN				GPIO_PIN_BASE+7   // Digital Output pin 3
 
-#define MARC_SERIAL             Serial2  // Use HardwareSerial2 for Marcduino commands
+#define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
 
 #elif defined(LILYGO_MINI32)
 
@@ -102,8 +102,8 @@
 #define TXD1_PIN                39   // unused
 #define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
 #define TXD2_PIN                16   // Syren output from Roam-a-dome
-#define RXD3_PIN                32   // Marcduino input (receive)
-#define TXD3_PIN                0    // Marcduino output (send)
+#define RXD3_PIN                32   // Command Serial input (receive)
+#define TXD3_PIN                0    // Command Serial output (send)
 
 #define DOUT1_PIN          		5
 #define DOUT2_PIN          		13
@@ -111,6 +111,6 @@
 #define DOUT4_PIN				18
 #define DOUT5_PIN				19
 
-#define MARC_SERIAL             Serial2  // Use HardwareSerial2 for Marcduino commands
+#define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
 
 #endif

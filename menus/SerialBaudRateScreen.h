@@ -1,31 +1,31 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// Select Marcduino baud rates
+// Select Command Serial baud rates
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-class MarcBaudRateScreen : public ChoiceIntArrayScreen
+class SerialBaudRateScreen : public ChoiceIntArrayScreen
 {
 public:
-    MarcBaudRateScreen(ScreenID id = kMarcBaudRateScreen) :
-        ChoiceIntArrayScreen(id, sMarcBaudRates, SizeOfArray(sMarcBaudRates))
+    SerialBaudRateScreen(ScreenID id = kSerialBaudRateScreen) :
+        ChoiceIntArrayScreen(id, sSerialBaudRates, SizeOfArray(sSerialBaudRates))
     {
     }
 
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fMarcBaudRate;
+        return sSettings.fSerialBaudRate;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fMarcBaudRate = newValue;
+        sSettings.fSerialBaudRate = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fMarcBaudRate = newValue;
+        sSettings.fSerialBaudRate = newValue;
         sSettings.write();
     }
 };
@@ -36,4 +36,4 @@ protected:
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-MarcBaudRateScreen sMarcBaudRateScreen;
+SerialBaudRateScreen sSerialBaudRateScreen;
