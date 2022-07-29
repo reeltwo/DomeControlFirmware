@@ -22,7 +22,7 @@
 #define USE_DOME_DEBUG                // Define for dome drive mode debug
 #undef  USE_VERBOSE_DOME_DEBUG        // Define for dome motor specific debug
 #undef  USE_DOME_SENSOR_SERIAL_DEBUG  // Define for dome sensor ring specific debug
-#ifdef ESP32
+#if 0//def ESP32
 #define USE_DROID_REMOTE              // Define for droid remote support
 #define USE_WIFI
 #define USE_SPIFFS
@@ -300,7 +300,7 @@ WifiMarcduinoReceiver wifiMarcduinoReceiver(wifiAccess);
 Preferences preferences;
 #endif
 
-#ifdef ESP32
+#ifdef USE_WIFI
 TaskHandle_t eventTask;
 #endif
 
@@ -1046,9 +1046,11 @@ void setup()
         preferences.getBool(PREFERENCE_WIFI_AP, WIFI_ACCESS_POINT),
         preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED));
 #endif
+#ifdef USE_PREFERENCES
     if (preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED))
     {
     }
+#endif
 
     Serial.print(F("Droid Dome Controller - "));
     Serial.println(F(__DATE__));
@@ -1200,7 +1202,7 @@ void setup()
     });
 #endif
 
-#ifdef ESP32
+#ifdef USE_WIFI
     xTaskCreatePinnedToCore(
           eventLoopTask,
           "Events",
@@ -2511,7 +2513,7 @@ void mainLoop()
 #endif
 }
 
-#ifdef ESP32
+#ifdef USE_WIFI
 void eventLoopTask(void* )
 {
     for (;;)
@@ -2524,7 +2526,7 @@ void eventLoopTask(void* )
 
 void loop()
 {
-#ifdef ESP32
+#ifdef USE_WIFI
  #ifdef USE_OTA
     ArduinoOTA.handle();
  #endif
