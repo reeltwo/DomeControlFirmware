@@ -16,12 +16,7 @@ public:
         sDisplay.invertDisplay(false);
         sDisplay.clearDisplay();
         sDisplay.setTextSize(4);
-        String textPos = "OK";
-        int16_t x1, y1;
-        uint16_t w, h;
-        sDisplay.getTextBounds(textPos, 0, 0, &x1, &y1, &w, &h);
-        sDisplay.setCursor(SCREEN_WIDTH / 2 - w / 2, 0);
-        sDisplay.println(textPos);
+        sDisplay.drawTextCentered("OK");
         sDisplay.display();
     }
 

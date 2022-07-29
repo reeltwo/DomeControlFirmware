@@ -19,7 +19,7 @@ static const char* sSettingsMenu[] = {
     "Set Home\nMin Delay",
     "Set Home\nMax Delay",
     "Set Auto\nSafety",
-    "Marc Baud\nRate",
+    "Set Serial\nBaud Rate",
     "Saber Baud\nRate",
     "Set Packet\nSerial In",
     "Set Packet\nSerial Out",
@@ -50,7 +50,7 @@ public:
         kSetHomeMinDelay,
         kSetHomeMaxDelay,
         kSetAutoSafety,
-        kSetMarcBaudRate,
+        kSetSerialBaudRate,
         kSetSaberBaudRate,
         kSetPacketSerialInput,
         kSetPacketSerialOutput,
@@ -112,8 +112,8 @@ public:
             case kSetAutoSafety:
                 pushScreen(kSetAutoSafetyScreen);
                 break;
-            case kSetMarcBaudRate:
-                pushScreen(kMarcBaudRateScreen);
+            case kSetSerialBaudRate:
+                pushScreen(kSerialBaudRateScreen);
                 break;
             case kSetSaberBaudRate:
                 pushScreen(kSaberBaudRateScreen);

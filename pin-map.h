@@ -40,7 +40,32 @@
 
 #define COMMAND_SERIAL          Serial3  // Use HardwareSerial3 for Serial commands
 
-#elif defined(AMIDALA_AUTOMATION_PCB)
+#elif defined(ROAM_A_DOME_COMPACT_PCB)
+
+#define PWM_INPUT_PIN           19   // PWM Input Pin (Stealth or other PWM based dome control)
+#define PWM_OUTPUT_PIN          18   // PWM Output Pin (PWM Syren controller) - Not supported yet
+
+#define DOUT1_PIN               33   // Digital Output pin 1
+#define DOUT2_PIN               25   // Digital Output pin 2
+#define DOUT3_PIN               26   // Digital Output pin 3
+#define DOUT4_PIN               27   // Digital Output pin 4
+#define DOUT5_PIN               23   // Digital Output pin 5
+
+#define RXD1_PIN                34   // Dome Sensor Ring Input Pin
+#define TXD1_PIN                0    // unused
+#define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
+#define TXD2_PIN                16   // Syren output from Roam-a-dome
+#define RXD3_PIN                32   // Command Serial input (receive)
+#define TXD3_PIN                4    // Command Serial output (send)
+
+#define EXPAND_INT_PIN          13   // GPIO Expander interrupt pin
+#define PPMIN_RC_PIN            14   // PPM RC Input Pin
+
+#define STATUSLED_PIN           5    // LED Status
+
+#define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
+
+#elif defined(ROAM_A_DOME_FULLSIZE_PCB)
 
 #define PWM_INPUT_PIN           19   // PWM Input Pin (Stealth or other PWM based dome control)
 #define PWM_OUTPUT_PIN          18   // PWM Output Pin (PWM Syren controller) - Not supported yet
@@ -87,7 +112,7 @@
 
 #define PWM_INPUT_PIN           36   // PWM Input Pin (Stealth or other PWM based dome control)
 
-#ifdef USE_SCREEN
+#ifdef USE_LCD_SCREEN
  #define PIN_ENCODER_A          2    // Rotary encoder pin A
  #define PIN_ENCODER_B          4    // Rotary encoder pin A
 

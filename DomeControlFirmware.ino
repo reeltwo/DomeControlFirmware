@@ -2,15 +2,60 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 ///////////////////////////////////
+
+//#define ROAM_A_DOME_FULLSIZE_PCB
+//#define ROAM_A_DOME_COMPACT_PCB
+#define LILYGO_MINI32
+//#define ROAM_A_DOME_MEGA_PCB
+
+///////////////////////////////////
+
+///////////////////////////////////
 // CONFIGURABLE OPTIONS
 ///////////////////////////////////
 
 #define USE_DEBUG                     // Define to enable debug diagnostic
-#define USE_SCREEN                    // Define if using LCD and Rotary encoder
+#if defined(ROAM_A_DOME_FULLSIZE_PCB) || defined(ROAM_A_DOME_MEGA_PCB)
+#define USE_LCD_SCREEN                // Define if using LCD and Rotary encoder
+#endif
 #undef  USE_SERVOS                    // Define is enabling servo output on digital out pins
 #define USE_DOME_DEBUG                // Define for dome drive mode debug
 #undef  USE_VERBOSE_DOME_DEBUG        // Define for dome motor specific debug
 #undef  USE_DOME_SENSOR_SERIAL_DEBUG  // Define for dome sensor ring specific debug
+#ifdef ESP32
+#define USE_DROID_REMOTE              // Define for droid remote support
+#define USE_WIFI
+#define USE_SPIFFS
+#define USE_PREFERENCES
+#define SMQ_HOSTNAME                    "RoamADome"
+#define SMQ_SECRET                      "Astromech"
+#endif
+
+#if defined(USE_LCD_SCREEN) || defined(USE_DROID_REMOTE)
+#define USE_MENUS                     // Define if using menu system
+#endif
+
+#ifdef USE_WIFI
+#define USE_MDNS
+#define USE_OTA
+#define USE_WIFI_WEB
+#define USE_WIFI_MARCDUINO
+#endif
+
+///////////////////////////////////
+
+#ifdef USE_WIFI
+#define REMOTE_ENABLED                  true
+#define WIFI_ENABLED                    true
+// Set these to your desired credentials.
+#define WIFI_AP_NAME                    "RoamADome"
+#define WIFI_AP_PASSPHRASE              "Astromech"
+#define WIFI_ACCESS_POINT               true  /* true if access point: false if joining existing wifi */
+
+#define MARC_SERIAL_BAUD_RATE           9600
+#define MARC_WIFI_ENABLED               true
+#define MARC_WIFI_SERIAL_PASS           true
+#endif
 
 #define SETUP_MAX_ANGULAR_VELOCITY      45 /* cm/s */
 #define SETUP_VELOCITY_START            40
@@ -84,19 +129,19 @@
 #define PACKET_SERIAL_TIMEOUT   1500
 
 ///////////////////////////////////
-#ifdef ESP32
-//#define AMIDALA_AUTOMATION_PCB
-#define LILYGO_MINI32
-#endif
+
 #include "pin-map.h"
 
 ///////////////////////////////////
 
+#ifdef USE_DROID_REMOTE
+#include "ReelTwoSMQ32.h"
+#else
 #include "ReelTwo.h"
+#endif
 
 #ifdef ARDUINO_ARCH_LINUX
  #define USE_SIMULATOR
- #undef USE_SCREEN
  #undef DOME_SENSOR_SERIAL
  #undef DOME_DRIVE_SERIAL
 #endif
@@ -128,6 +173,58 @@
 #ifdef USE_SERVOS
 #include "ServoDispatchDirect.h"
 #include "ServoEasing.h"
+#endif
+#ifdef USE_PREFERENCES
+#include <Preferences.h>
+#define PREFERENCE_REMOTE_ENABLED           "remote"
+#define PREFERENCE_WIFI_ENABLED             "wifi"
+#define PREFERENCE_WIFI_SSID                "ssid"
+#define PREFERENCE_WIFI_PASS                "pass"
+#define PREFERENCE_WIFI_AP                  "ap"
+
+#define PREFERENCE_MARCSERIAL               "mserial"
+#define PREFERENCE_MARCWIFI_ENABLED         "mwifi"
+#define PREFERENCE_MARCWIFI_SERIAL_PASS     "mwifipass"
+#endif
+#ifdef USE_OTA
+#include <ArduinoOTA.h>
+#endif
+#ifdef USE_SPIFFS
+#include "SPIFFS.h"
+#define USE_FS SPIFFS
+#elif defined(USE_FATFS)
+#include "FFat.h"
+#define USE_FS FFat
+#elif defined(USE_LITTLEFS)
+#include "LITTLEFS.h"
+#define USE_FS LITTLEFS
+#endif
+#ifdef ESP32
+#include "FS.h"
+#endif
+
+///////////////////////////////////
+
+#ifdef STATUSLED_PIN
+#include "core/SingleStatusLED.h"
+typedef SingleStatusLED<STATUSLED_PIN> StatusLED;
+StatusLED statusLED;
+#endif
+
+///////////////////////////////////
+
+#ifdef USE_WIFI
+#include "wifi/WifiAccess.h"
+#endif
+#ifdef USE_MDNS
+#include <ESPmDNS.h>
+#endif
+#ifdef USE_WIFI_WEB
+#include "wifi/WifiWebServer.h"
+#include "web-images.h"
+#endif
+#ifdef USE_WIFI_MARCDUINO
+#include "wifi/WifiMarcduinoReceiver.h"
 #endif
 
 ///////////////////////////////////
@@ -191,18 +288,66 @@ PinManager sPinManager;
 
 ///////////////////////////////////
 
-#ifdef USE_SCREEN
+#ifdef USE_WIFI
+WifiAccess wifiAccess;
+#endif
+
+#ifdef USE_WIFI_MARCDUINO
+WifiMarcduinoReceiver wifiMarcduinoReceiver(wifiAccess);
+#endif
+
+#ifdef USE_PREFERENCES
+Preferences preferences;
+#endif
+
+#ifdef ESP32
+TaskHandle_t eventTask;
+#endif
+
+#ifdef USE_OTA
+bool otaInProgress;
+#endif
+
+///////////////////////////////////
+
+bool mountReadOnlyFileSystem()
+{
+#ifdef USE_SPIFFS
+    return (SPIFFS.begin(true));
+#endif
+    return false;
+}
+
+void unmountFileSystems()
+{
+#ifdef USE_SPIFFS
+    SPIFFS.end();
+#endif
+}
+
+///////////////////////////////////
+
+#ifdef USE_MENUS
+
+#include "Screens.h"
+#include "menus/CommandScreen.h"
+
+#ifdef USE_LCD_SCREEN
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
 #define SCREEN_ADDRESS 0x3C
 
-#include "Screens.h"
-#include "menus/CommandScreen.h"
 #include "menus/CommandScreenHandlerSSD1306.h"
-
 CommandScreenHandlerSSD1306 sDisplay(sPinManager);
+
+#else
+
+#include "menus/CommandScreenHandlerSMQ.h"
+CommandScreenHandlerSMQ sDisplay;
+
+#endif
 
 #endif
 
@@ -637,57 +782,228 @@ static void restoreDomeSettings()
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifdef USE_SCREEN
-void scan_i2c()
-{
-    unsigned nDevices = 0;
-    for (byte address = 1; address < 127; address++)
-    {
-        String name = "<unknown>";
-        Wire.beginTransmission(address);
-        byte error = Wire.endTransmission();
-        if (address == 0x70)
-        {
-            // All call address for PCA9685
-            name = "PCA9685:all";
-        }
-        if (address == 0x40)
-        {
-            // Adafruit PCA9685
-            name = "PCA9685";
-        }
-        if (address == 0x20)
-        {
-            name = "GPIO Expander";
-        }
-        if (address == 0x16)
-        {
-            // PSIPro
-            name = "PSIPro";
-        }
-        if (error == 0)
-        {
-            Serial.print("I2C device found at address 0x");
-            if (address < 16)
-                Serial.print("0");
-            Serial.print(address, HEX);
-            Serial.print(" ");
-            Serial.println(name);
-            nDevices++;
-        }
-        else if (error == 4)
-        {
-            Serial.print("Unknown error at address 0x");
-            if (address < 16)
-                Serial.print("0");
-            Serial.println(address, HEX);
-        }
-    }
-    if (nDevices == 0)
-        Serial.println("No I2C devices found\n");
-    else
-        Serial.println("done\n");
-}
+#ifdef USE_WIFI_WEB
+/////////////////////////////////////////////////////////////////////////
+// Web Interface for logic engine animation sequences
+WElement controlContents[] = {
+    WHorizontalAlign(),
+    WButton("Back", "back", "/"),
+    WHorizontalAlign(),
+    WButton("Home", "home", "/"),
+    rseriesSVG
+};
+
+String swBaudRates[] = {
+    "2400",
+    "9600",
+};
+
+int marcSerialBaud;
+bool marcSerialPass;
+bool marcSerialEnabled;
+bool marcWifiEnabled;
+bool marcWifiSerialPass;
+
+WElement marcduinoContents[] = {
+    WSelect("Serial Baud Rate", "serialbaud",
+        swBaudRates, SizeOfArray(swBaudRates),
+        []() { return (marcSerialBaud = (preferences.getInt(PREFERENCE_MARCSERIAL, MARC_SERIAL_BAUD_RATE)) == 2400) ? 0 : 1; },
+        [](int val) { marcSerialBaud = (val == 0) ? 2400 : 9600; } ),
+    WCheckbox("Marcduino on Wifi (port 2000)", "wifienabled",
+        []() { return (marcWifiEnabled = (preferences.getBool(PREFERENCE_MARCWIFI_ENABLED, MARC_WIFI_ENABLED))); },
+        [](bool val) { marcWifiEnabled = val; } ),
+    WCheckbox("Marcduino Wifi pass-through to Serial", "wifipass",
+        []() { return (marcWifiSerialPass = (preferences.getBool(PREFERENCE_MARCWIFI_SERIAL_PASS, MARC_WIFI_SERIAL_PASS))); },
+        [](bool val) { marcWifiSerialPass = val; } ),
+    WButton("Save", "save", []() {
+        preferences.putInt(PREFERENCE_MARCSERIAL, marcSerialBaud);
+        preferences.putBool(PREFERENCE_MARCWIFI_ENABLED, marcWifiEnabled);
+        preferences.putBool(PREFERENCE_MARCWIFI_SERIAL_PASS, marcWifiSerialPass);
+    }),
+    WHorizontalAlign(),
+    WButton("Back", "back", "/setup"),
+    WHorizontalAlign(),
+    WButton("Home", "home", "/"),
+    WVerticalAlign(),
+    rseriesSVG
+};
+
+WElement setupDomeContents[] = {
+    WButton("Save", "save", []() {
+    }),
+    WHorizontalAlign(),
+    WButtonReload("Defaults", "default", []() {
+    }),
+    WHorizontalAlign(),
+    WButton("Back", "back", "/setup"),
+    WHorizontalAlign(),
+    WButton("Home", "home", "/"),
+    WVerticalAlign(),
+    rseriesSVG
+};
+
+String wifiSSID;
+String wifiPass;
+bool wifiAP;
+bool wifiEnabled;
+bool remoteEnabled;
+
+WElement wifiContents[] = {
+    W1("WiFi Setup"),
+    WCheckbox("Remote Enabled", "remoteenabled",
+        []() { return (remoteEnabled = preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED)); },
+        [](bool val) { remoteEnabled = val; } ),
+    WCheckbox("WiFi Enabled", "enabled",
+        []() { return (wifiEnabled = preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED)); },
+        [](bool val) { wifiEnabled = val; } ),
+    WCheckbox("Access Point", "apmode",
+        []() { return (wifiAP = preferences.getBool(PREFERENCE_WIFI_AP, WIFI_ACCESS_POINT)); },
+        [](bool val) { wifiAP = val; } ),
+    WTextField("WiFi:", "wifi",
+        []()->String { return (wifiSSID = preferences.getString(PREFERENCE_WIFI_SSID, WIFI_AP_NAME)); },
+        [](String val) { wifiSSID = val; } ),
+    WPassword("Password:", "password",
+        []()->String { return (wifiPass = preferences.getString(PREFERENCE_WIFI_PASS, WIFI_AP_PASSPHRASE)); },
+        [](String val) { wifiPass = val; } ),
+    WButton("Save", "save", []() {
+        DEBUG_PRINTLN("WiFi Changed");
+        preferences.putBool(PREFERENCE_REMOTE_ENABLED, remoteEnabled);
+        preferences.putBool(PREFERENCE_WIFI_ENABLED, wifiEnabled);
+        preferences.putBool(PREFERENCE_WIFI_AP, wifiAP);
+        preferences.putString(PREFERENCE_WIFI_SSID, wifiSSID);
+        preferences.putString(PREFERENCE_WIFI_PASS, wifiPass);
+        DEBUG_PRINTLN("Restarting");
+        preferences.end();
+        ESP.restart();
+    }),
+    WHorizontalAlign(),
+    WButton("Back", "back", "/setup"),
+    WHorizontalAlign(),
+    WButton("Home", "home", "/"),
+    WVerticalAlign(),
+    rseriesSVG
+};
+
+WElement firmwareContents[] = {
+    W1("Firmware Setup"),
+    WFirmwareFile("Firmware:", "firmware"),
+    WFirmwareUpload("Reflash", "firmware"),
+    WLabel("Current Firmware Build Date:", "label"),
+    WLabel(__DATE__, "date"),
+    WButton("Clear Prefs", "clear", []() {
+        DEBUG_PRINTLN("Clear all preference settings");
+        preferences.clear();
+    }),
+    WHorizontalAlign(),
+    WButton("Reboot", "reboot", []() {
+        DEBUG_PRINTLN("Rebooting");
+        preferences.end();
+        ESP.restart();
+    }),
+    WHorizontalAlign(),
+    WButton("Back", "back", "/setup"),
+    WHorizontalAlign(),
+    WButton("Home", "home", "/"),
+    WVerticalAlign(),
+    rseriesSVG
+};
+
+////////////////////////////////
+
+WMenuData mainMenu[] = {
+    { "Control", "/control" },
+    { "Setup", "/setup" }
+};
+
+WMenuData setupMenu[] = {
+    { "Home", "/" },
+    { "Dome", "/setupdome" },
+    { "Marcduino", "/marcduino" },
+    { "WiFi", "/wifi" },
+    { "Firmware", "/firmware" },
+    { "Back", "/" }
+};
+
+WElement mainContents[] = {
+    WVerticalMenu("menu", mainMenu, SizeOfArray(mainMenu)),
+    rseriesSVG
+};
+
+WElement setupContents[] = {
+    WVerticalMenu("setup", setupMenu, SizeOfArray(setupMenu)),
+    rseriesSVG
+};
+
+WPage pages[] = {
+    WPage("/", mainContents, SizeOfArray(mainContents)),
+      WPage("/control", controlContents, SizeOfArray(controlContents)),
+    WPage("/setup", setupContents, SizeOfArray(setupContents)),
+      WPage("/setupdome", setupDomeContents, SizeOfArray(setupDomeContents)),
+      WPage("/marcduino", marcduinoContents, SizeOfArray(marcduinoContents)),
+      WPage("/wifi", wifiContents, SizeOfArray(wifiContents)),
+      WPage("/firmware", firmwareContents, SizeOfArray(firmwareContents)),
+        WUpload("/upload/firmware",
+            [](Client& client)
+            {
+                if (Update.hasError())
+                    client.println("HTTP/1.0 200 FAIL");
+                else
+                    client.println("HTTP/1.0 200 OK");
+                client.println("Content-type:text/html");
+                client.println("Vary: Accept-Encoding");
+                client.println();
+                client.println();
+                client.stop();
+                if (!Update.hasError())
+                {
+                    delay(1000);
+                    preferences.end();
+                    ESP.restart();
+                }
+            #ifdef USE_OTA
+                otaInProgress = false;
+            #endif
+            },
+            [](WUploader& upload)
+            {
+                if (upload.status == UPLOAD_FILE_START)
+                {
+                    otaInProgress = true;
+                    unmountFileSystems();
+                    Serial.printf("Update: %s\n", upload.filename.c_str());
+                    if (!Update.begin(upload.fileSize))
+                    {
+                        //start with max available size
+                        Update.printError(Serial);
+                    }
+                }
+                else if (upload.status == UPLOAD_FILE_WRITE)
+                {
+                    float range = (float)upload.receivedSize / (float)upload.fileSize;
+                    DEBUG_PRINTLN("Received: "+String(range*100)+"%");
+                   /* flashing firmware to ESP*/
+                    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+                    {
+                        Update.printError(Serial);
+                    }
+                }
+                else if (upload.status == UPLOAD_FILE_END)
+                {
+                    DEBUG_PRINTLN("GAME OVER");
+                    if (Update.end(true))
+                    {
+                        //true to set the size to the current progress
+                        Serial.printf("Update Success: %u\nRebooting...\n", upload.receivedSize);
+                    }
+                    else
+                    {
+                        Update.printError(Serial);
+                    }
+                }
+            })
+};
+
+WifiWebServer<10,SizeOfArray(pages)> webServer(pages, wifiAccess);
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -715,6 +1031,24 @@ void setup()
     DOME_SENSOR_SERIAL.begin(DOME_SENSOR_SERIAL_BAUD);
  #endif
 #endif
+
+#ifdef USE_PREFERENCES
+    if (!preferences.begin("roamadome", false))
+    {
+        DEBUG_PRINTLN("Failed to init prefs");
+    }
+#endif
+#ifdef USE_WIFI_WEB
+    // In preparation for adding WiFi settings web page
+    wifiAccess.setNetworkCredentials(
+        preferences.getString(PREFERENCE_WIFI_SSID, WIFI_AP_NAME),
+        preferences.getString(PREFERENCE_WIFI_PASS, WIFI_AP_PASSPHRASE),
+        preferences.getBool(PREFERENCE_WIFI_AP, WIFI_ACCESS_POINT),
+        preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED));
+#endif
+    if (preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED))
+    {
+    }
 
     Serial.print(F("Droid Dome Controller - "));
     Serial.println(F(__DATE__));
@@ -759,9 +1093,8 @@ void setup()
     }
     sPinManager.begin();
 
-#ifdef USE_SCREEN
+#ifdef USE_LCD_SCREEN
     Wire.begin();
-    scan_i2c();
 #ifndef ESP32
     Wire.setWireTimeout();
 #endif
@@ -779,11 +1112,104 @@ void setup()
             sDisplay.setRotation(2);
         }
     }
+#elif defined(USE_MENUS)
+    sDisplay.setEnabled(true);
 #endif
+
+#ifdef USE_WIFI_WEB
+    wifiAccess.notifyWifiConnected([](WifiAccess &wifi) {
+    #ifdef USE_SMQ
+        SMQ::init(SMQ_HOSTNAME, SMQ_SECRET);
+        SMQ::setHostDiscoveryCallback([](SMQHost* host) {
+            if (host->hasTopic("LCD"))
+            {
+                printf("Remote Discovered: %s\n", host->getHostName().c_str());
+            }
+        });
+
+        SMQ::setHostLostCallback([](SMQHost* host) {
+            printf("Lost: %s\n", host->getHostName().c_str());
+        });
+    #endif
+        Serial.print("Connect to http://"); Serial.println(wifi.getIPAddress());
+    #ifdef USE_MDNS
+        // No point in setting up mDNS if R2 is the access point
+        if (!wifi.isSoftAP())
+        {
+            String mac = wifi.getMacAddress();
+            String hostName = mac.substring(mac.length()-5, mac.length());
+            hostName.remove(2, 1);
+            hostName = "RoamADome-"+hostName;
+            if (webServer.enabled())
+            {
+                Serial.print("Host name: "); Serial.println(hostName);
+                if (!MDNS.begin(hostName.c_str()))
+                {
+                    DEBUG_PRINTLN("Error setting up MDNS responder!");
+                }
+            }
+        }
+    #endif
+    });
+#endif
+#ifdef USE_OTA
+    ArduinoOTA.onStart([]()
+    {
+        String type;
+        if (ArduinoOTA.getCommand() == U_FLASH)
+        {
+            type = "sketch";
+        }
+        else // U_SPIFFS
+        {
+            type = "filesystem";
+        }
+        DEBUG_PRINTLN("OTA START");
+    })
+    .onEnd([]()
+    {
+        DEBUG_PRINTLN("OTA END");
+    })
+    .onProgress([](unsigned int progress, unsigned int total)
+    {
+        float range = (float)progress / (float)total;
+    })
+    .onError([](ota_error_t error)
+    {
+        String desc;
+        if (error == OTA_AUTH_ERROR) desc = "Auth Failed";
+        else if (error == OTA_BEGIN_ERROR) desc = "Begin Failed";
+        else if (error == OTA_CONNECT_ERROR) desc = "Connect Failed";
+        else if (error == OTA_RECEIVE_ERROR) desc = "Receive Failed";
+        else if (error == OTA_END_ERROR) desc = "End Failed";
+        else desc = "Error: "+String(error);
+        DEBUG_PRINTLN(desc);
+    });
+#endif
+
     restoreDomeSettings();
     sDomeDrive.setDomePosition(&sDomePosition);
     sDomeDrive.setEnable(true);
     Serial.println(F("READY"));
+
+#ifdef USE_WIFI_WEB
+    // For safety we will stop the motors if the web client is connected
+    webServer.setConnect([]() {
+        // Callback for each connected web client
+        // DEBUG_PRINTLN("Hello");
+    });
+#endif
+
+#ifdef ESP32
+    xTaskCreatePinnedToCore(
+          eventLoopTask,
+          "Events",
+          5000,    // shrink stack size?
+          NULL,
+          1,
+          &eventTask,
+          0);
+#endif
 }
 
 static byte sReadBuffer[4];
@@ -808,7 +1234,7 @@ static unsigned sSaberBaudRates[] = {
     38400
 };
 
-#ifdef USE_SCREEN
+#ifdef USE_MENUS
 
 static unsigned sBooleanValues[] = {
     false,
@@ -1278,7 +1704,7 @@ float calculateSpeed(unsigned speedPercentage)
     while (sWaitTarget)
     {
         AnimatedEvent::process();
-    #ifdef USE_SCREEN
+    #ifdef USE_MENUS
         sDisplay.process();
     #endif
         if (sDomePosition.isTimeout())
@@ -1854,10 +2280,38 @@ bool processCommand(const char* cmd, bool firstCommand)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void loop()
+#ifdef USE_SMQ
+SMQMESSAGE(DIAL, {
+    long newValue = msg.get_int32("new");
+    long oldValue = msg.get_int32("old");
+    sDisplay.remoteDialEvent(newValue, oldValue);
+})
+
+///////////////////////////////////////////////////////////////////////////////
+
+SMQMESSAGE(BUTTON, {
+    uint8_t id = msg.get_uint8("id");
+    bool pressed = msg.get_uint8("pressed");
+    bool repeat = msg.get_uint8("repeat");
+    sDisplay.remoteButtonEvent(id, pressed, repeat);
+})
+
+///////////////////////////////////////////////////////////////////////////////
+
+SMQMESSAGE(SELECT, {
+    printf("REMOTE ACTIVE\n");
+    sDisplay.setEnabled(true);
+    sDisplay.switchToScreen(kMainScreen);
+    sMainScreen.init();
+})
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
+void mainLoop()
 {
     AnimatedEvent::process();
-#ifdef USE_SCREEN
+#ifdef USE_MENUS
     sDisplay.process();
 #endif
     // append commands to command buffer
@@ -2056,4 +2510,31 @@ void loop()
     }
 #endif
 }
+
+#ifdef ESP32
+void eventLoopTask(void* )
+{
+    for (;;)
+    {
+        mainLoop();
+        vTaskDelay(1);
+    }
+}
+#endif
+
+void loop()
+{
+#ifdef ESP32
+ #ifdef USE_OTA
+    ArduinoOTA.handle();
+ #endif
+ #ifdef USE_WIFI_WEB
+    webServer.handle();
+ #endif
+    vTaskDelay(1);
+#else
+    mainLoop();
+#endif
+}
+
 #pragma GCC diagnostic pop

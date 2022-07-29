@@ -16,7 +16,6 @@ public:
         sDisplay.invertDisplay(false);
         sDisplay.clearDisplay();
         sDisplay.setTextSize(1);
-        sDisplay.setTextColor(SSD1306_WHITE);
         sDisplay.setCursor(0, 0);
         sDisplay.println(F("Droid Dome Controller"));
         sDisplay.println(F(__DATE__));
