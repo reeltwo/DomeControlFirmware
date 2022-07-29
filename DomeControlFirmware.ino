@@ -2493,6 +2493,7 @@ void mainLoop()
         Serial.println(F("Syren Idle"));
         sSerialMotorActivity = false;
         sLastMotorValue = 0;
+        sDomeDrive.driveDome(0);
     }
     if (sSerialMotorActivity)
     {
