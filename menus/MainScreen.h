@@ -19,21 +19,40 @@ public:
 
     virtual void render() override
     {
-        if (millis() > fLastScreenUpdate + 100)
+        if (sDomePosition.ready())
         {
-            int16_t pos = sDomePosition.getHomeRelativeDomePosition();
-            if (sDomePosition.ready() && pos != fLastPos)
-                fLastPos = pos;
-            if (fLastPos != fLastDisplayPos)
+            if (millis() > fLastScreenUpdate + 100)
             {
-                sDisplay.invertDisplay(false);
+                int16_t pos = sDomePosition.getHomeRelativeDomePosition();
+                if (sDomePosition.ready() && pos != fLastPos)
+                    fLastPos = pos;
+                if (fLastPos != fLastDisplayPos)
+                {
+                    sDisplay.invertDisplay(false);
+                    sDisplay.clearDisplay();
+                    sDisplay.setTextSize(4);
+                    sDisplay.drawTextCentered(String(fLastPos));
+                    sDisplay.display();
+                    fLastDisplayPos = fLastPos;
+                }
+                fLastScreenUpdate = millis();
+            }
+        }
+        else
+        {
+            if (fLastDisplayPos != -2)
+            {
+                sDisplay.invertDisplay(true);
                 sDisplay.clearDisplay();
                 sDisplay.setTextSize(4);
-                sDisplay.drawTextCentered(String(fLastPos));
+                sDisplay.drawTextCentered("N/A");
                 sDisplay.display();
-                fLastDisplayPos = fLastPos;
+                fLastDisplayPos = -2;
             }
-            fLastScreenUpdate = millis();
+            if (sDisplay.elapsed() >= 2000)
+            {
+                pushScreen(kSelectScreen);
+            }
         }
     }
 
@@ -42,13 +61,33 @@ public:
         pushScreen(kSelectScreen);
     }
 
+#ifdef USE_DROID_REMOTE
+    virtual void buttonLeftPressed(bool repeat) override
+    {
+        if (remoteEnabled)
+        {
+        #ifdef USE_SMQ
+            if (SMQ::sendTopic("EXIT", "Remote"))
+            {
+                SMQ::sendString("addr", SMQ::getAddress());
+                SMQ::sendEnd();
+                sDisplay.setEnabled(false);
+            }
+        #endif
+        }
+    }
+#endif
+
     virtual bool isActive() override
     {
-        int16_t pos = sDomePosition.getHomeRelativeDomePosition();
-        if (sDomePosition.ready() && pos != fLastPos)
+        if (sDomePosition.ready())
         {
-            fLastPos = pos;
-            return true;
+            int16_t pos = sDomePosition.getHomeRelativeDomePosition();
+            if (sDomePosition.ready() && pos != fLastPos)
+            {
+                fLastPos = pos;
+                return true;
+            }
         }
         return false;
     }

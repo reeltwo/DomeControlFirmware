@@ -22,27 +22,46 @@ public:
 
     virtual void render() override
     {
-        if (millis() > fLastScreenUpdate + 100)
+        if (sDomePosition.ready())
         {
-            int16_t pos = sDomePosition.getHomeRelativeDomePosition();
-            if (sDomePosition.ready() && pos != fLastPos)
-                fLastPos = pos;
-            if (fLastPos != fLastDisplayPos)
+            if (millis() > fLastScreenUpdate + 100)
             {
-                sDisplay.invertDisplay(false);
+                int16_t pos = sDomePosition.getHomeRelativeDomePosition();
+                if (sDomePosition.ready() && pos != fLastPos)
+                    fLastPos = pos;
+                if (fLastPos != fLastDisplayPos)
+                {
+                    sDisplay.invertDisplay(false);
+                    sDisplay.clearDisplay();
+                    sDisplay.setTextSize(4);
+                    sDisplay.drawTextCentered(String(fLastPos));
+                    sDisplay.display();
+                    fLastDisplayPos = fLastPos;
+                }
+                fLastScreenUpdate = millis();
+            }
+        }
+        else
+        {
+            if (fLastDisplayPos != -2)
+            {
+                sDisplay.invertDisplay(true);
                 sDisplay.clearDisplay();
                 sDisplay.setTextSize(4);
-                sDisplay.drawTextCentered(String(fLastPos));
+                sDisplay.drawTextCentered("N/A");
                 sDisplay.display();
-                fLastDisplayPos = fLastPos;
+                fLastDisplayPos = -2;
             }
-            fLastScreenUpdate = millis();
+            if (sDisplay.elapsed() >= 2000)
+            {
+                popScreen();
+            }
         }
     }
 
     virtual void buttonUpPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
         {
             sDomePosition.setDomeTargetPosition(int(sDomePosition.getDomePosition()) - 90);
         }
@@ -50,7 +69,7 @@ public:
 
     virtual void buttonLeftPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
         {
             sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 10);
         }
@@ -58,7 +77,7 @@ public:
 
     virtual void buttonDownPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
         {
             sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 90);
         }
@@ -66,7 +85,7 @@ public:
 
     virtual void buttonRightPressed(bool repeat) override
     {
-        if (sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
         {
             sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() + 10);
         }
@@ -74,10 +93,13 @@ public:
 
     virtual void buttonDial(long newValue, long oldValue) override
     {
-        long target = (long)fmod(newValue, 24) * 15;
-        if (target < 0)
-            target += 360;
-        sDomePosition.setDomeTargetPosition(target);
+        if (sDomePosition.ready())
+        {
+            long target = (long)fmod(newValue, 24) * 15;
+            if (target < 0)
+                target += 360;
+            sDomePosition.setDomeTargetPosition(target);
+        }
     }
 
     virtual void buttonInReleased() override

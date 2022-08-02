@@ -39,6 +39,8 @@
 #define SENSOROUT_PIN           A9   // Analog Sensor Output Pin
 
 #define COMMAND_SERIAL          Serial3  // Use HardwareSerial3 for Serial commands
+#define COMMAND_SERIAL_READ     Serial3  // Use HardwareSerial3 for Serial commands
+#define COMMAND_SERIAL_WRITE    Serial3  // Use HardwareSerial3 for Serial commands
 
 #elif defined(ROAM_A_DOME_COMPACT_PCB)
 
@@ -53,9 +55,11 @@
 
 #define RXD1_PIN                34   // Dome Sensor Ring Input Pin
 #define TXD1_PIN                0    // unused
-#define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
+//#define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
+#define RXD2_PIN                4   // Syren input from droid controller (Shadow/Padawan)
 #define TXD2_PIN                16   // Syren output from Roam-a-dome
-#define RXD3_PIN                32   // Command Serial input (receive)
+//#define RXD3_PIN                32   // Command Serial input (receive)
+#define RXD3_PIN                17   // Command Serial input (receive)
 #define TXD3_PIN                4    // Command Serial output (send)
 
 #define EXPAND_INT_PIN          13   // GPIO Expander interrupt pin
@@ -64,6 +68,8 @@
 #define STATUSLED_PIN           5    // LED Status
 
 #define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
+#define COMMAND_SERIAL_READ     driveSerial
+#define COMMAND_SERIAL_WRITE    Serial2  // Use HardwareSerial2 for Serial commands
 
 #elif defined(ROAM_A_DOME_FULLSIZE_PCB)
 
@@ -107,6 +113,8 @@
 #define DOUT3_PIN				GPIO_PIN_BASE+7   // Digital Output pin 3
 
 #define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
+#define COMMAND_SERIAL_READ     driveSerial
+#define COMMAND_SERIAL_WRITE    Serial2  // Use HardwareSerial2 for Serial commands
 
 #elif defined(LILYGO_MINI32)
 
@@ -137,5 +145,7 @@
 #define DOUT5_PIN				19
 
 #define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
+#define COMMAND_SERIAL_READ     driveSerial
+#define COMMAND_SERIAL_WRITE    Serial2  // Use HardwareSerial2 for Serial commands
 
 #endif
