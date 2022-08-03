@@ -56,7 +56,7 @@
 #define RXD1_PIN                34   // Dome Sensor Ring Input Pin
 #define TXD1_PIN                0    // unused
 //#define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
-#define RXD2_PIN                4   // Syren input from droid controller (Shadow/Padawan)
+#define RXD2_PIN                32   // Syren input from droid controller (Shadow/Padawan)
 #define TXD2_PIN                16   // Syren output from Roam-a-dome
 //#define RXD3_PIN                32   // Command Serial input (receive)
 #define RXD3_PIN                17   // Command Serial input (receive)

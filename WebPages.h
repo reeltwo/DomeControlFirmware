@@ -42,7 +42,7 @@ WElement serialContents[] = {
         if (cmdSerialBaud != sSettings.fSerialBaudRate)
         {
             sSettings.fSerialBaudRate = cmdSerialBaud;
-            updateSettings();
+            sUpdateSettings = true;
         }
         preferences.putBool(PREFERENCE_MARCWIFI_ENABLED, cmdWifiEnabled);
         preferences.putBool(PREFERENCE_MARCWIFI_SERIAL_PASS, cmdWifiSerialPass);
@@ -64,9 +64,9 @@ WElement domePositionContents[] = {
     WButton("Save", "save", []() {
         if (sDomePosSettingsChanged)
         {
-            updateSettings();
+            sUpdateSettings = true;
         }
-        sDomePosSettingsChanged = false;
+        sUpdateSettings = true;
     }),
     WHorizontalAlign(),
     WButtonReload("Defaults", "default", []() {
@@ -109,7 +109,7 @@ WElement domeContents[] = {
     WButton("Save", "save", []() {
         if (sDomeSettingsChanged)
         {
-            updateSettings();
+            sUpdateSettings = true;
         }
         sDomeSettingsChanged = false;
     }),
@@ -160,7 +160,7 @@ WElement autoDomeContents[] = {
     WButton("Save", "save", []() {
         if (sAutoDomeSettingsChanged)
         {
-            updateSettings();
+            sUpdateSettings = true;
         }
         sAutoDomeSettingsChanged = false;
     }),
@@ -199,7 +199,7 @@ WElement homeDomeContents[] = {
     WButton("Save", "save", []() {
         if (sHomeDomeSettingsChanged)
         {
-            updateSettings();
+            sUpdateSettings = true;
         }
         sHomeDomeSettingsChanged = false;
     }),

@@ -824,6 +824,7 @@ static void restoreDomeSettings()
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef USE_WIFI_WEB
+static bool sUpdateSettings;
 #include "WebPages.h"
 #endif
 
@@ -1515,6 +1516,9 @@ static void updateSettings()
     configureDomeDrive();
 #endif
     Serial.println(F("Updated"));
+#ifdef USE_WIFI_WEB
+    sUpdateSettings = false;
+#endif
 }
 
 // Given motor power percentage returns speed in cm/s
@@ -2221,6 +2225,12 @@ SMQMESSAGE(SELECT, {
 
 void mainLoop()
 {
+#ifdef USE_WIFI_WEB
+    if (sUpdateSettings)
+    {
+        updateSettings();
+    }
+#endif
     if (!sDomePosition.ready())
     {
         static uint32_t sLastDomeSensorCheck;
@@ -2253,6 +2263,7 @@ void mainLoop()
     if (COMMAND_SERIAL_READ.available())
     {
         int ch = COMMAND_SERIAL_READ.read();
+        printf("ch: %d\n", ch);
         if (ch == 0x0A || ch == 0x0D)
         {
             runSerialCommand();
