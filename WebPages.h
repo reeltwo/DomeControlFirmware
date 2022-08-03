@@ -151,7 +151,7 @@ WElement autoDomeContents[] = {
     WSlider("Auto Minimum Delay Seconds", "mindelay", 0, MAX_AUTO_DELAY,
         []()->int { return sSettings.fDomeAutoMinDelay; },
         [](int val) { sSettings.fDomeAutoMinDelay = val; sAutoDomeSettingsChanged = true; } ),
-    WSlider("Auto Maximum Delay Seconds", "mindelay", 0, MAX_AUTO_DELAY,
+    WSlider("Auto Maximum Delay Seconds", "maxdelay", 0, MAX_AUTO_DELAY,
         []()->int { return sSettings.fDomeAutoMaxDelay; },
         [](int val) { sSettings.fDomeAutoMaxDelay = val; sAutoDomeSettingsChanged = true; } ),
     WSlider("Auto Dome Speed", "autospeed", 0, MAX_SPEED,
