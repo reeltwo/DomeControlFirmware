@@ -1779,22 +1779,22 @@ void processConfigureCommand(const char* cmd)
         int speed = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fDomeSpeedMin, min(speed, MAX_SPEED));
     }
-    else if (startswith_P(cmd, F("DPAUTOLEFT")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTOLEFT")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fDomeAutoLeft, min(speed, MAX_AUTO_LEFT));
     }
-    else if (startswith_P(cmd, F("DPAUTORIGHT")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTORIGHT")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fDomeAutoRight, min(speed, MAX_AUTO_RIGHT));
     }
-    else if (startswith_P(cmd, F("DPAUTOMIN")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTOMIN")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fDomeAutoMinDelay, min(speed, MAX_AUTO_DELAY));
     }
-    else if (startswith_P(cmd, F("DPAUTOMAX")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTOMAX")) && isdigit(*cmd))
     {
         int speed = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fDomeAutoMaxDelay, min(speed, MAX_AUTO_DELAY));
