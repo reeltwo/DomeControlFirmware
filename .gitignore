@@ -5,6 +5,7 @@
 *.sublime-workspace
 ._*
 .build
+build_version.h
 .DS_Store
 .DS_Store?
 .Spotlight-V100

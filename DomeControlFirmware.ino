@@ -1,7 +1,14 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
 ///////////////////////////////////
+
+#if __has_include("build_version.h")
+#include "build_version.h"
+#else
+#define BUILD_VERSION "custom"
+#endif
 
 #ifdef ESP32
 //#define ROAM_A_DOME_FULLSIZE_PCB
@@ -158,9 +165,9 @@
  #undef DOME_DRIVE_SERIAL
 #endif
 
-// #if defined(ESP32) || defined(ARDUINO_ARCH_LINUX)
-//  #define EEPROM_SIZE             4096
-// #endif
+#if defined(ESP32) || defined(ARDUINO_ARCH_LINUX)
+ #define EEPROM_SIZE             4096
+#endif
 
 ///////////////////////////////////
 
@@ -864,8 +871,14 @@ void setup()
 #endif
 
     Serial.print(F("Droid Dome Controller - "));
-    Serial.println(F(__DATE__));
+    Serial.print(F(__DATE__));
+    Serial.print(F(" ["));
+    Serial.print(F(BUILD_VERSION));
+    Serial.println(']');
+
+#if 1
 #ifdef EEPROM_FLASH_PARTITION_NAME
+    printf("EEPROM_SIZE : %d\n", EEPROM_SIZE);
     if (!EEPROM.begin(EEPROM_SIZE))
     {
         Serial.println("Failed to initialize EEPROM");
@@ -885,6 +898,7 @@ void setup()
             Serial.println(F("Readback Success"));
         }
     }
+#endif
 #ifdef COMMAND_SERIAL
  #ifdef ESP32
     COMMAND_SERIAL.begin(sSettings.fSerialBaudRate, SERIAL_8N1, RXD3_PIN, TXD3_PIN);
@@ -1018,7 +1032,7 @@ void setup()
         })
         .onProgress([](unsigned int progress, unsigned int total)
         {
-            float range = (float)progress / (float)total;
+            // float range = (float)progress / (float)total;
         })
         .onError([](ota_error_t error)
         {
@@ -1600,7 +1614,9 @@ void reboot()
 #ifdef ESP32
     pulseInput.end();
     unmountFileSystems();
+#ifdef USE_PREFERENCES
     preferences.end();
+#endif
     ESP.restart();
 #elif defined(REELTWO_AVR)
     void (*resetArduino)() = NULL;
@@ -2482,6 +2498,9 @@ void loop()
     }
 #else
     mainLoop();
+ #ifdef ESP32
+    vTaskDelay(1);
+ #endif
 #endif
 }
 
