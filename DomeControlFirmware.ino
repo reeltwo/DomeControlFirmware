@@ -227,8 +227,26 @@
 
 #ifdef STATUSLED_PIN
 #include "core/SingleStatusLED.h"
+
+enum {
+    kNormalMode = 0,
+    kWifiMode = 1,
+    kRemoteMode = 2,
+    kNormalMovingMode = 3,
+    kWifiMovingMode = 4,
+    kRemoteMovingMode = 5
+};
+unsigned sCurrentMode = kNormalMode;
+static constexpr uint8_t kStatusColors[][4][3] = {
+      { {  0,   2,    0} , {   0,    2,    0} , {  0,   2,    0} , {   0,    2,    0}  },  // normal (all green)
+      { {  0,   0,    2} , {   0,    0,    2} , {  0,   0,    2} , {   0,    0,    2}  },  // wifi enabled (all blue)
+      { {  0,   2,    2} , {   0,    2,    2} , {  0,   2,    2} , {   0,    2,    2}  },  // remote enabled (all yellow)
+      { {  0,  10,    0} , {  10,    0,    0} , {  0,  10,    0} , {  10,    0,    0}  },  // green,red,green,red
+      { {  0,   0,   10} , {  10,    0,    0} , {  0,   0,   10} , {  10,    0,    0}  },  // blue,red,blue,red
+      { {  0,  10,   10} , {  10,    0,    0} , {  0,  10,   10} , {  10,    0,    0}  }   // yellow,red,yellow,red
+};
 typedef SingleStatusLED<STATUSLED_PIN> StatusLED;
-StatusLED statusLED;
+StatusLED statusLED(kStatusColors, SizeOfArray(kStatusColors));
 #endif
 
 ///////////////////////////////////
@@ -874,11 +892,14 @@ void setup()
     Serial.print(F(__DATE__));
     Serial.print(F(" ["));
     Serial.print(F(BUILD_VERSION));
-    Serial.println(']');
+    Serial.print(']');
+#ifdef ESP_ARDUINO_VERSION_MAJOR
+    Serial.print(" " + String(ESP_ARDUINO_VERSION_MAJOR) + "." + String(ESP_ARDUINO_VERSION_MINOR) + "." + String(ESP_ARDUINO_VERSION_PATCH));
+#endif
+    Serial.println();
 
 #if 1
 #ifdef EEPROM_FLASH_PARTITION_NAME
-    printf("EEPROM_SIZE : %d\n", EEPROM_SIZE);
     if (!EEPROM.begin(EEPROM_SIZE))
     {
         Serial.println("Failed to initialize EEPROM");
@@ -991,6 +1012,9 @@ void setup()
         }
     #endif
         wifiAccess.notifyWifiConnected([](WifiAccess &wifi) {
+        #ifdef STATUSLED_PIN
+            statusLED.setMode(sCurrentMode = kWifiMode);
+        #endif
             Serial.print("Connect to http://"); Serial.println(wifi.getIPAddress());
         #ifdef USE_MDNS
             // No point in setting up mDNS if R2 is the access point
@@ -2230,6 +2254,7 @@ SMQMESSAGE(BUTTON, {
 ///////////////////////////////////////////////////////////////////////////////
 
 SMQMESSAGE(SELECT, {
+    statusLED.setMode(sCurrentMode = kRemoteMovingMode);
     printf("REMOTE ACTIVE\n");
     sDisplay.setEnabled(true);
     sDisplay.switchToScreen(kMainScreen);
@@ -2401,6 +2426,9 @@ void mainLoop()
                         default:
                             if (!sSerialMotorActivity)
                             {
+                            #ifdef STATUSLED_PIN
+                                statusLED.setMode(sCurrentMode + 3);
+                            #endif
                                 DEBUG_PRINTLN(F("Syren Active"));
                                 sSerialMotorActivity = true;
                             }
@@ -2436,6 +2464,9 @@ void mainLoop()
     }
     if (sSerialMotorActivity && sLastSerialMotorEvent + PACKET_SERIAL_TIMEOUT < millis())
     {
+    #ifdef STATUSLED_PIN
+        statusLED.setMode(sCurrentMode);
+    #endif
         Serial.println(F("Syren Idle"));
         sSerialMotorActivity = false;
         sLastMotorValue = 0;
@@ -2453,10 +2484,22 @@ void mainLoop()
     }
 #endif
 #ifdef PWM_INPUT_PIN
-    if (sSettings.fPWMInput && pulseInput.becameInactive())
+    if (sSettings.fPWMInput)
     {
-        Serial.println(F("No PWM Input"));
-        sDomeDrive.driveDome(0);
+        if (pulseInput.becameInactive())
+        {
+        #ifdef STATUSLED_PIN
+            statusLED.setMode(sCurrentMode);
+        #endif
+            Serial.println(F("No PWM Input"));
+            sDomeDrive.driveDome(0);
+        }
+        else if (pulseInput.becameActive())
+        {
+        #ifdef STATUSLED_PIN
+            statusLED.setMode(sCurrentMode + 3);
+        #endif
+        }
     }
 #endif
 }
