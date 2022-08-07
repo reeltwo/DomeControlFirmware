@@ -275,6 +275,8 @@ WElement remoteContents[] = {
         [](String val) { remoteSecret = val; } ),
     WButton("Save", "save", []() {
         DEBUG_PRINTLN("Remote Changed");
+        preferences.putBool(PREFERENCE_REMOTE_ENABLED, remoteEnabled);
+        preferences.putBool(PREFERENCE_WIFI_ENABLED, wifiEnabled);
         preferences.putString(PREFERENCE_REMOTE_HOSTNAME, remoteHostName);
         preferences.putString(PREFERENCE_REMOTE_SECRET, remoteSecret);
         reboot();
@@ -293,6 +295,9 @@ WElement firmwareContents[] = {
     WFirmwareUpload("Reflash", "firmware"),
     WLabel("Current Firmware Build Date:", "label"),
     WLabel(__DATE__, "date"),
+#ifdef BUILD_VERSION
+    WHRef(BUILD_VERSION, "Sources"),
+#endif
     WButton("Clear Prefs", "clear", []() {
         DEBUG_PRINTLN("Clear all preference settings");
         preferences.clear();

@@ -329,7 +329,9 @@ PinManager sPinManager;
 #ifdef USE_WIFI
 WifiAccess wifiAccess;
 bool wifiEnabled;
+bool wifiActive;
 bool remoteEnabled;
+bool remoteActive;
 #endif
 
 #ifdef USE_WIFI_MARCDUINO
@@ -884,8 +886,8 @@ void setup()
     {
         DEBUG_PRINTLN("Failed to init prefs");
     }
-    wifiEnabled = preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED);
-    remoteEnabled = preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED);
+    wifiEnabled = wifiActive = preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED);
+    remoteEnabled = remoteActive = preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED);
 #endif
 
     Serial.print(F("Droid Dome Controller - "));
@@ -2518,26 +2520,20 @@ void eventLoopTask(void* )
 void loop()
 {
 #ifdef USE_WIFI
-    if (wifiEnabled)
+    if (wifiActive)
     {
-     #ifdef USE_OTA
+    #ifdef USE_OTA
         ArduinoOTA.handle();
-     #endif
-     #ifdef USE_WIFI_WEB
+    #endif
+    #ifdef USE_WIFI_WEB
         webServer.handle();
-     #endif
+    #endif
     }
-    else if (remoteEnabled)
+    else if (remoteActive)
     {
-     #ifdef USE_SMQ
-        static bool sSMQReentrancy;
-        if (!sSMQReentrancy)
-        {
-            sSMQReentrancy = true;
-            SMQ::process();
-            sSMQReentrancy = false;
-        }
-     #endif
+    #ifdef USE_SMQ
+        SMQ::process();
+    #endif
     }
 #else
     mainLoop();
