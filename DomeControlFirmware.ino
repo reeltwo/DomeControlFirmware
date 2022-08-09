@@ -197,7 +197,7 @@
 #include <Preferences.h>
 #define PREFERENCE_REMOTE_ENABLED           "remote"
 #define PREFERENCE_REMOTE_HOSTNAME          "rhost"
-#define PREFERENCE_REMOTE_SECRET            "remote"
+#define PREFERENCE_REMOTE_SECRET            "rsecret"
 #define PREFERENCE_WIFI_ENABLED             "wifi"
 #define PREFERENCE_WIFI_SSID                "ssid"
 #define PREFERENCE_WIFI_PASS                "pass"
