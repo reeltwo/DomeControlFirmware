@@ -42,8 +42,6 @@
 #define USE_WIFI
 #define USE_SPIFFS
 #define USE_PREFERENCES
-#define SMQ_HOSTNAME                    "RoamADome"
-#define SMQ_SECRET                      "Astromech"
 #endif
 
 #if defined(USE_LCD_SCREEN) || defined(USE_DROID_REMOTE)
@@ -66,6 +64,8 @@
 #define WIFI_AP_NAME                    "RoamADome"
 #define WIFI_AP_PASSPHRASE              "Astromech"
 #define WIFI_ACCESS_POINT               true  /* true if access point: false if joining existing wifi */
+#define SMQ_HOSTNAME                    "RoamADome"
+#define SMQ_SECRET                      "Astromech"
 
 #define MARC_SERIAL_BAUD_RATE           9600
 #define MARC_WIFI_ENABLED               true
@@ -351,6 +351,17 @@ bool otaInProgress;
 #endif
 
 bool sDomeHasMovedManually = false;
+
+///////////////////////////////////////////////////////////////////////////////
+
+String getHostName()
+{
+    String mac = wifiAccess.getMacAddress();
+    String hostName = mac.substring(mac.length()-5, mac.length());
+    hostName.remove(2, 1);
+    hostName = WIFI_AP_NAME+String("-")+hostName;
+    return hostName;
+}
 
 ///////////////////////////////////
 
@@ -900,7 +911,6 @@ void setup()
 #endif
     Serial.println();
 
-#if 1
 #ifdef EEPROM_FLASH_PARTITION_NAME
     if (!EEPROM.begin(EEPROM_SIZE))
     {
@@ -921,7 +931,6 @@ void setup()
             Serial.println(F("Readback Success"));
         }
     }
-#endif
 #ifdef COMMAND_SERIAL
  #ifdef ESP32
     COMMAND_SERIAL.begin(sSettings.fSerialBaudRate, SERIAL_8N1, RXD3_PIN, TXD3_PIN);
@@ -995,7 +1004,7 @@ void setup()
     #ifdef USE_WIFI_WEB
         // In preparation for adding WiFi settings web page
         wifiAccess.setNetworkCredentials(
-            preferences.getString(PREFERENCE_WIFI_SSID, WIFI_AP_NAME),
+            preferences.getString(PREFERENCE_WIFI_SSID, getHostName()),
             preferences.getString(PREFERENCE_WIFI_PASS, WIFI_AP_PASSPHRASE),
             preferences.getBool(PREFERENCE_WIFI_AP, WIFI_ACCESS_POINT),
             preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED));

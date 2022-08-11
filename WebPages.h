@@ -233,7 +233,7 @@ WElement wifiContents[] = {
         []() { return (wifiAP = preferences.getBool(PREFERENCE_WIFI_AP, WIFI_ACCESS_POINT)); },
         [](bool val) { wifiAP = val; } ),
     WTextField("WiFi:", "wifi",
-        []()->String { return (wifiSSID = preferences.getString(PREFERENCE_WIFI_SSID, WIFI_AP_NAME)); },
+        []()->String { return (wifiSSID = preferences.getString(PREFERENCE_WIFI_SSID, getHostName())); },
         [](String val) { wifiSSID = val; } ),
     WPassword("Password:", "password",
         []()->String { return (wifiPass = preferences.getString(PREFERENCE_WIFI_PASS, WIFI_AP_PASSPHRASE)); },
