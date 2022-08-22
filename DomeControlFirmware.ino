@@ -130,11 +130,7 @@
 #define SYREN_ADDRESS_OUTPUT    129
 
 #define DOME_SENSOR_SERIAL          Serial1
-#ifdef ESP32
- #define DOME_DRIVE_SOFT_SERIAL     1
- #define DOME_DRIVE_SERIAL          driveSerial
- #define DOME_DRIVE_SERIAL_WRITE    driveSerial
- #define DOME_DRIVE_SERIAL_READ     Serial2
+#ifndef DOME_DRIVE_SERIAL_WRITE
 #else
  #define DOME_DRIVE_SERIAL          Serial2
  #define DOME_DRIVE_SERIAL_WRITE    Serial2
@@ -562,6 +558,10 @@ public:
 };
 SerialDomeController sDomeStick(Serial);
 
+#if defined(DOME_DRIVE_SOFT_SERIAL) || defined(COMMAND_SOFT_SERIAL)
+#include "SoftwareSerial.h"
+#endif
+
 #ifdef USE_SIMULATOR
 class DomeDriveEmulator : public DomeDrive
 {
@@ -623,10 +623,13 @@ protected:
 DomeDriveEmulator sDomeDrive(sDomeRing, sDomeStick);
 #else
  #ifdef DOME_DRIVE_SOFT_SERIAL
-  #include "SoftwareSerial.h"
   SoftwareSerial DOME_DRIVE_SERIAL;
  #endif
  DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS_OUTPUT, DOME_DRIVE_SERIAL, sDomeStick);
+#endif
+
+#ifdef COMMAND_SOFT_SERIAL
+SoftwareSerial COMMAND_SERIAL;
 #endif
 
 #ifdef USE_SERVOS
@@ -871,12 +874,26 @@ static bool sUpdateSettings;
 void configureDomeDrive()
 {
 #ifdef DOME_DRIVE_SOFT_SERIAL
-    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SWSERIAL_8N1, RXD2_PIN, TXD2_PIN, false);
+    // We only use software serial to send Syren commands
+    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SWSERIAL_8N1, -1, TXD2_PIN, false);
 #elif defined(DOME_DRIVE_SERIAL)
  #ifdef ESP32
     DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, TXD2_PIN);
  #else
     DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate);
+ #endif
+#endif
+}
+
+void configureCommandSerial()
+{
+#ifdef COMMAND_SOFT_SERIAL
+    COMMAND_SERIAL.begin(sSettings.fSerialBaudRate, SWSERIAL_8N1, RXD3_PIN, TXD3_PIN, false);
+#elif defined(COMMAND_SERIAL)
+ #ifdef ESP32
+    COMMAND_SERIAL.begin(sSettings.fSerialBaudRate, SERIAL_8N1, RXD3_PIN, TXD3_PIN);
+ #else
+    COMMAND_SERIAL.begin(sSettings.fSerialBaudRate);
  #endif
 #endif
 }
@@ -931,13 +948,14 @@ void setup()
             Serial.println(F("Readback Success"));
         }
     }
-#ifdef COMMAND_SERIAL
- #ifdef ESP32
-    COMMAND_SERIAL.begin(sSettings.fSerialBaudRate, SERIAL_8N1, RXD3_PIN, TXD3_PIN);
- #else
-    COMMAND_SERIAL.begin(sSettings.fSerialBaudRate);
- #endif
+#ifdef ESP32
+    if ((void*)&DOME_DRIVE_SERIAL_READ != (void*)&DOME_DRIVE_SERIAL_WRITE)
+    {
+        // We only use hardware serial to read Syren commands
+        DOME_DRIVE_SERIAL_READ.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, 0 /*not used*/);
+    }
 #endif
+    configureCommandSerial();
     configureDomeDrive();
 
     sDomeDrive.setBaudRate(sSettings.fSaberBaudRate);
@@ -1219,11 +1237,11 @@ static void abortSerialCommand()
 
 bool processDomePositionCommand(const char* cmd)
 {
-    if (!sDomeDrive.idle())
-    {
-        Serial.println(F("MANUAL OVERRIDE. DOME NOT IDLE."));
-        return false;
-    }
+    // if (!sDomeDrive.idle())
+    // {
+    //     Serial.println(F("MANUAL OVERRIDE. DOME NOT IDLE."));
+    //     return false;
+    // }
     // move mode ends on the next serial command
     switch (*cmd++)
     {
@@ -1552,6 +1570,13 @@ bool processDomePositionCommand(const char* cmd)
 static void updateSettings()
 {
     restoreDomeSettings();
+#ifdef COMMAND_SOFT_SERIAL
+    // We must disable software serial on the ESP while updating flash memory
+    // the software serial RX interrupt will otherwise try to access cached memory
+    // while cache is disabled.
+    COMMAND_SERIAL.end();
+    delay(200);
+#endif
 #ifdef DOME_DRIVE_SOFT_SERIAL
     // We must disable software serial on the ESP while updating flash memory
     // the software serial RX interrupt will otherwise try to access cached memory
@@ -1561,6 +1586,10 @@ static void updateSettings()
 #endif
     sSettings.write();
 #ifdef DOME_DRIVE_SOFT_SERIAL
+    // Reenable software serial.
+    configureDomeDrive();
+#endif
+#ifdef COMMAND_SOFT_SERIAL
     // Reenable software serial.
     configureDomeDrive();
 #endif
@@ -2315,7 +2344,20 @@ void mainLoop()
     if (COMMAND_SERIAL_READ.available())
     {
         int ch = COMMAND_SERIAL_READ.read();
-        printf("ch: %d\n", ch);
+        if (ch >= 32 && ch <= 127)
+        {
+            Serial.print("READ: ");
+            Serial.print(char(ch));
+            Serial.print(" [");
+            Serial.print(ch);
+            Serial.println("]");
+        }
+        else
+        {
+            Serial.print("READ: . [");
+            Serial.print(ch);
+            Serial.println("]");
+        }
         if (ch == 0x0A || ch == 0x0D)
         {
             runSerialCommand();
@@ -2401,7 +2443,9 @@ void mainLoop()
                 byte value = sReadBuffer[2];
                 byte crc = sReadBuffer[3];
                 byte calcCRC = ((unsigned(address) + command + value) & B01111111);
-                printf("RCMD{%d}:%d:%d:%d [%d]\n", address, command, value, crc, calcCRC);
+            #ifdef ESP32
+                //printf("SYREN{%d}:%d:%d:%d [%d]\n", address, command, value, crc, calcCRC);
+            #endif
                 if (address == sSettings.fSaberAddressInput && crc == calcCRC)
                 {
                     // DEBUG_PRINT(address);

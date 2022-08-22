@@ -55,21 +55,16 @@
 
 #define RXD1_PIN                34   // Dome Sensor Ring Input Pin
 #define TXD1_PIN                0    // unused
-//#define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
-#define RXD2_PIN                32   // Syren input from droid controller (Shadow/Padawan)
+#define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
 #define TXD2_PIN                16   // Syren output from Roam-a-dome
-//#define RXD3_PIN                32   // Command Serial input (receive)
-#define RXD3_PIN                17   // Command Serial input (receive)
+// #define RXD3_PIN                32   // Command Serial input (receive)
 #define TXD3_PIN                4    // Command Serial output (send)
 
 #define EXPAND_INT_PIN          13   // GPIO Expander interrupt pin
 #define PPMIN_RC_PIN            14   // PPM RC Input Pin
+#define RXD3_PIN                PPMIN_RC_PIN   // Command Serial input (receive)
 
 #define STATUSLED_PIN           5    // LED Status
-
-#define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
-#define COMMAND_SERIAL_READ     driveSerial
-#define COMMAND_SERIAL_WRITE    Serial2  // Use HardwareSerial2 for Serial commands
 
 #elif defined(ROAM_A_DOME_FULLSIZE_PCB)
 
@@ -112,10 +107,6 @@
 #define DOUT2_PIN          		GPIO_PIN_BASE+6   // Digital Output pin 2
 #define DOUT3_PIN				GPIO_PIN_BASE+7   // Digital Output pin 3
 
-#define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
-#define COMMAND_SERIAL_READ     driveSerial
-#define COMMAND_SERIAL_WRITE    Serial2  // Use HardwareSerial2 for Serial commands
-
 #elif defined(LILYGO_MINI32)
 
 #define PWM_INPUT_PIN           36   // PWM Input Pin (Stealth or other PWM based dome control)
@@ -144,8 +135,18 @@
 #define DOUT4_PIN				18
 #define DOUT5_PIN				19
 
-#define COMMAND_SERIAL          Serial2  // Use HardwareSerial2 for Serial commands
-#define COMMAND_SERIAL_READ     driveSerial
-#define COMMAND_SERIAL_WRITE    Serial2  // Use HardwareSerial2 for Serial commands
+#endif
 
+// Serial mashup to work-around that using hardware serial to send commands
+// to Syren from the ESP32 has an unacceptably high latency leading to very
+// inaccurate motor control
+#ifdef ESP32
+#define DOME_DRIVE_SOFT_SERIAL  1
+#define COMMAND_SOFT_SERIAL     1
+#define DOME_DRIVE_SERIAL       driveSerial
+#define DOME_DRIVE_SERIAL_WRITE driveSerial
+#define DOME_DRIVE_SERIAL_READ  Serial2
+#define COMMAND_SERIAL          commandSerial
+#define COMMAND_SERIAL_READ     commandSerial
+#define COMMAND_SERIAL_WRITE    commandSerial  // Use HardwareSerial2 for Serial commands
 #endif
