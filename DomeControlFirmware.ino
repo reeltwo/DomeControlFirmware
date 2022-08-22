@@ -117,7 +117,7 @@
 #define MAX_FUDGE_FACTOR        20
 #define MAX_AUTO_LEFT           180
 #define MAX_AUTO_RIGHT          180
-#define MAX_AUTO_DELAY          255
+#define MAX_AUTO_DELAY          60
 #define MAX_ACC_SCALE           255
 #define MAX_DEC_SCALE           255
 #define MAX_TIMEOUT             30

@@ -190,7 +190,7 @@ WElement homeDomeContents[] = {
     WSlider("Home Minimum Delay", "mindelay", 0, MAX_AUTO_DELAY,
         []()->int { return sSettings.fDomeHomeMinDelay; },
         [](int val) { sSettings.fDomeHomeMinDelay = val; sHomeDomeSettingsChanged = true; } ),
-    WSlider("Home Maximum Delay", "mindelay", 0, MAX_AUTO_DELAY,
+    WSlider("Home Maximum Delay", "maxdelay", 0, MAX_AUTO_DELAY,
         []()->int { return sSettings.fDomeHomeMaxDelay; },
         [](int val) { sSettings.fDomeHomeMaxDelay = val; sHomeDomeSettingsChanged = true; } ),
     WSlider("Home Dome Speed", "autospeed", 0, MAX_SPEED,
