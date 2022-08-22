@@ -57,12 +57,11 @@
 #define TXD1_PIN                0    // unused
 #define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
 #define TXD2_PIN                16   // Syren output from Roam-a-dome
-// #define RXD3_PIN                32   // Command Serial input (receive)
+#define RXD3_PIN                32   // Command Serial input (receive)
 #define TXD3_PIN                4    // Command Serial output (send)
 
 #define EXPAND_INT_PIN          13   // GPIO Expander interrupt pin
 #define PPMIN_RC_PIN            14   // PPM RC Input Pin
-#define RXD3_PIN                PPMIN_RC_PIN   // Command Serial input (receive)
 
 #define STATUSLED_PIN           5    // LED Status
 
