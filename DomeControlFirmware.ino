@@ -11,9 +11,14 @@
 #endif
 
 #ifdef ESP32
+#if !defined(ROAM_A_DOME_FULLSIZE_PCB) && \
+    !defined(ROAM_A_DOME_COMPACT_PCB) && \
+    !defined(LILYGO_MINI32)
+#error
 //#define ROAM_A_DOME_FULLSIZE_PCB
 #define ROAM_A_DOME_COMPACT_PCB
 //#define LILYGO_MINI32
+#endif
 #elif defined(__AVR_ATmega2560__)
 #define ROAM_A_DOME_MEGA_PCB
 #elif defined(ARDUINO_ARCH_LINUX)
@@ -2272,7 +2277,9 @@ SMQMESSAGE(BUTTON, {
 ///////////////////////////////////////////////////////////////////////////////
 
 SMQMESSAGE(SELECT, {
+#ifdef STATUSLED_PIN
     statusLED.setMode(sCurrentMode = kRemoteMovingMode);
+#endif
     printf("REMOTE ACTIVE\n");
     sDisplay.setEnabled(true);
     sDisplay.switchToScreen(kMainScreen);
@@ -2446,17 +2453,10 @@ void mainLoop()
                                 break;
                            FALL_THROUGH
 
-                        case 2: /* setMinVoltage */
-                        case 3: /* setMaxVoltage */
                         case 8: /* drive */
                         case 9: /* drive - negative */
                         case 10: /* turn */
                         case 11: /* turn - negative */
-                        case 14: /* setTimeout */
-                        case 15: /* setBaudRate */
-                        case 16: /* setRamping */
-                        case 17: /* setDeadband */
-                        default:
                             if (!sSerialMotorActivity)
                             {
                             #ifdef STATUSLED_PIN
@@ -2468,6 +2468,25 @@ void mainLoop()
                             // DEBUG_PRINT("["); DEBUG_PRINT(address); DEBUG_PRINT("] ");
                             // DEBUG_PRINT(command); DEBUG_PRINT(":"); DEBUG_PRINTLN(value);
                             sLastSerialMotorEvent = millis();
+                            break;
+
+                        case 2: /* setMinVoltage */
+                        case 3: /* setMaxVoltage */
+                        case 14: /* setTimeout */
+                        case 15: /* setBaudRate */
+                        case 16: /* setRamping */
+                        case 17: /* setDeadband */
+                        default:
+                            // Ignore non-drive related Syren commands
+                            // if (!sSerialMotorActivity)
+                            // {
+                            // #ifdef STATUSLED_PIN
+                            //     statusLED.setMode(sCurrentMode + 3);
+                            // #endif
+                            //     DEBUG_PRINTLN(F("Syren Active"));
+                            //     sSerialMotorActivity = true;
+                            // }
+                            // sLastSerialMotorEvent = millis();
                             break;
                     }
                     sReadPos = 0;

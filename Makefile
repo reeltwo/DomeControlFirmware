@@ -16,4 +16,12 @@ adafruit/Adafruit_BusIO \
 rimim/espsoftwareserial \
 xreef/PCF8574_library
 
+ifeq ("$(FULLSIZE)","1")
+ARDUINO_OPTS+='-prefs="compiler.cpp.extra_flags=-DROAM_A_DOME_FULLSIZE_PCB=1"'
+else ifeq ("$(LILYGO)","1")
+ARDUINO_OPTS+='-prefs="compiler.cpp.extra_flags=-DLILYGO_MINI32=1"'
+else
+ARDUINO_OPTS+='-prefs="compiler.cpp.extra_flags=-DROAM_A_DOME_COMPACT_PCB=1"'
+endif
+
 include ../Arduino.mk
