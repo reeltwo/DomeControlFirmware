@@ -72,6 +72,9 @@ public:
                 SMQ::sendString("addr", SMQ::getAddress());
                 SMQ::sendEnd();
                 sDisplay.setEnabled(false);
+            #ifdef STATUSLED_PIN
+                statusLED.setMode(sCurrentMode = kNormalMode);
+            #endif
             }
         #endif
         }

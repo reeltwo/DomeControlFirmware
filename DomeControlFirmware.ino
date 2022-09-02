@@ -6,9 +6,13 @@
 
 #if __has_include("build_version.h")
 #include "build_version.h"
-#else
-#define BUILD_VERSION "custom"
 #endif
+
+#if __has_include("reeltwo_build_version.h")
+#include "reeltwo_build_version.h"
+#endif
+
+///////////////////////////////////
 
 #ifdef ESP32
 #if !defined(ROAM_A_DOME_FULLSIZE_PCB) && \
@@ -876,6 +880,12 @@ static bool sUpdateSettings;
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifdef USE_DROID_REMOTE
+static SMQAddress sRemoteAddress;
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
 void configureDomeDrive()
 {
 #ifdef DOME_DRIVE_SOFT_SERIAL
@@ -923,15 +933,7 @@ void setup()
     remoteEnabled = remoteActive = preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED);
 #endif
 
-    Serial.print(F("Droid Dome Controller - "));
-    Serial.print(F(__DATE__));
-    Serial.print(F(" ["));
-    Serial.print(F(BUILD_VERSION));
-    Serial.print(']');
-#ifdef ESP_ARDUINO_VERSION_MAJOR
-    Serial.print(" " + String(ESP_ARDUINO_VERSION_MAJOR) + "." + String(ESP_ARDUINO_VERSION_MINOR) + "." + String(ESP_ARDUINO_VERSION_PATCH));
-#endif
-    Serial.println();
+    PrintReelTwoInfo(Serial, "Droid Dome Controller");
 
 #ifdef EEPROM_FLASH_PARTITION_NAME
     if (!EEPROM.begin(EEPROM_SIZE))
@@ -1004,7 +1006,9 @@ void setup()
         if (SMQ::init(preferences.getString(PREFERENCE_REMOTE_HOSTNAME, SMQ_HOSTNAME),
                         preferences.getString(PREFERENCE_REMOTE_SECRET, SMQ_SECRET)))
         {
-            printf("Droid Remote Enabled\n");
+            printf("Droid Remote Enabled %s:%s\n",
+                preferences.getString(PREFERENCE_REMOTE_HOSTNAME, SMQ_HOSTNAME).c_str(),
+                    preferences.getString(PREFERENCE_REMOTE_SECRET, SMQ_SECRET).c_str());
             SMQ::setHostDiscoveryCallback([](SMQHost* host) {
                 if (host->hasTopic("LCD"))
                 {
@@ -1013,7 +1017,13 @@ void setup()
             });
 
             SMQ::setHostLostCallback([](SMQHost* host) {
-                printf("Lost: %s\n", host->getHostName().c_str());
+                printf("Lost: %s [%s] [%s]\n", host->getHostName().c_str(), host->getHostAddress().c_str(),
+                    sRemoteAddress.toString().c_str());
+                if (sRemoteAddress.equals(host->fAddr))
+                {
+                    printf("DISABLING REMOTE\n");
+                    sDisplay.setEnabled(false);
+                }
             });
         }
         else
@@ -2277,13 +2287,19 @@ SMQMESSAGE(BUTTON, {
 ///////////////////////////////////////////////////////////////////////////////
 
 SMQMESSAGE(SELECT, {
-#ifdef STATUSLED_PIN
-    statusLED.setMode(sCurrentMode = kRemoteMovingMode);
-#endif
+// #ifdef STATUSLED_PIN
+//     statusLED.setMode(sCurrentMode = kRemoteMovingMode);
+// #endif
     printf("REMOTE ACTIVE\n");
-    sDisplay.setEnabled(true);
-    sDisplay.switchToScreen(kMainScreen);
+    sRemoteAddress = SMQ::messageSender();
     sMainScreen.init();
+    sDisplay.remoteActive();
+    // sDisplay.acquireLock();
+    // sMainScreen.init();
+    // sDisplay.setEnabled(true);
+    // sDisplay.switchToScreen(kMainScreen);
+    // delay(1000);
+    // sDisplay.releaseLock();
 })
 #endif
 
