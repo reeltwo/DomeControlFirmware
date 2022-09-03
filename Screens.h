@@ -33,5 +33,6 @@ enum ScreenID
     kSetMaxPulseScreen,
     kSetNeutralPulseScreen,
     kSetDeadbandPercentScreen,
+    kWiFiModeScreen,
     kEraseSettingsScreen,
 };

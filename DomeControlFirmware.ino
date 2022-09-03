@@ -881,6 +881,7 @@ static bool sUpdateSettings;
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef USE_DROID_REMOTE
+static bool sRemoteActive;
 static SMQAddress sRemoteAddress;
 #endif
 
@@ -999,10 +1000,10 @@ void setup()
 #endif
 
 #ifdef USE_PREFERENCES
-    if (preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED))
+    if (remoteEnabled)
     {
     #ifdef USE_SMQ
-        WiFi.mode(WIFI_MODE_STA);
+        WiFi.mode(WIFI_MODE_APSTA);
         if (SMQ::init(preferences.getString(PREFERENCE_REMOTE_HOSTNAME, SMQ_HOSTNAME),
                         preferences.getString(PREFERENCE_REMOTE_SECRET, SMQ_SECRET)))
         {
@@ -1032,7 +1033,7 @@ void setup()
         }
     #endif
     }
-    else if (preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED))
+    if (wifiEnabled)
     {
     #ifdef USE_WIFI_WEB
         // In preparation for adding WiFi settings web page
@@ -1191,6 +1192,7 @@ static const char* sOnOffStrings[] = {
 #include "menus/DomeAutoSpeedScreen.h"
 #include "menus/DomeSpeedScreen.h"
 #include "menus/EraseSettingsScreen.h"
+#include "menus/WiFiModeScreen.h"
 #include "menus/HomeModeScreen.h"
 #include "menus/MainScreen.h"
 #include "menus/SerialBaudRateScreen.h"
@@ -1669,6 +1671,7 @@ void reboot()
 {
     Serial.println(F("Restarting..."));
 #ifdef ESP32
+    DisconnectRemote();
     pulseInput.end();
     unmountFileSystems();
 #ifdef USE_PREFERENCES
@@ -1707,7 +1710,6 @@ void processConfigureCommand(const char* cmd)
         {
             if (wifiSetting)
             {
-                preferences.putBool(PREFERENCE_REMOTE_ENABLED, false);
                 preferences.putBool(PREFERENCE_WIFI_ENABLED, true);
                 Serial.println(F("WiFi Enabled"));
             }
@@ -1728,7 +1730,6 @@ void processConfigureCommand(const char* cmd)
             if (remoteSetting)
             {
                 preferences.putBool(PREFERENCE_REMOTE_ENABLED, true);
-                preferences.putBool(PREFERENCE_WIFI_ENABLED, false);
                 Serial.println(F("Remote Enabled"));
             }
             else
@@ -2291,6 +2292,7 @@ SMQMESSAGE(SELECT, {
 //     statusLED.setMode(sCurrentMode = kRemoteMovingMode);
 // #endif
     printf("REMOTE ACTIVE\n");
+    sRemoteActive = true;
     sRemoteAddress = SMQ::messageSender();
     sMainScreen.init();
     sDisplay.remoteActive();
@@ -2302,6 +2304,25 @@ SMQMESSAGE(SELECT, {
     // sDisplay.releaseLock();
 })
 #endif
+
+static void DisconnectRemote()
+{
+#ifdef USE_SMQ
+    if (sRemoteActive)
+    {
+        sRemoteActive = false;
+        if (SMQ::sendTopic("EXIT", "Remote"))
+        {
+            SMQ::sendString("addr", SMQ::getAddress());
+            SMQ::sendEnd();
+            sDisplay.setEnabled(false);
+        #ifdef STATUSLED_PIN
+            statusLED.setMode(sCurrentMode = kNormalMode);
+        #endif
+        }
+    }
+#endif
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -2595,7 +2616,7 @@ void loop()
         webServer.handle();
     #endif
     }
-    else if (remoteActive)
+    if (remoteActive)
     {
     #ifdef USE_SMQ
         SMQ::process();

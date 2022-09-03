@@ -66,17 +66,7 @@ public:
     {
         if (remoteEnabled)
         {
-        #ifdef USE_SMQ
-            if (SMQ::sendTopic("EXIT", "Remote"))
-            {
-                SMQ::sendString("addr", SMQ::getAddress());
-                SMQ::sendEnd();
-                sDisplay.setEnabled(false);
-            #ifdef STATUSLED_PIN
-                statusLED.setMode(sCurrentMode = kNormalMode);
-            #endif
-            }
-        #endif
+            DisconnectRemote();
         }
     }
 #endif

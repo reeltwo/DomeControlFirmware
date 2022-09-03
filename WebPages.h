@@ -226,7 +226,7 @@ WElement wifiContents[] = {
     W1("WiFi Setup"),
     WCheckbox("WiFi Enabled", "enabled",
         []() { return wifiEnabled; },
-        [](bool val) { wifiEnabled = val; if (wifiEnabled) remoteEnabled = false; } ),
+        [](bool val) { wifiEnabled = val; } ),
     WLabel("WiFi Disables Droid Remote", "label2"),
     WHR(),
     WCheckbox("Access Point", "apmode",
@@ -242,7 +242,6 @@ WElement wifiContents[] = {
     WHR(),
     WButton("Save", "save", []() {
         DEBUG_PRINTLN("WiFi Changed");
-        preferences.putBool(PREFERENCE_REMOTE_ENABLED, remoteEnabled);
         preferences.putBool(PREFERENCE_WIFI_ENABLED, wifiEnabled);
         preferences.putBool(PREFERENCE_WIFI_AP, wifiAP);
         preferences.putString(PREFERENCE_WIFI_SSID, wifiSSID);
@@ -264,7 +263,7 @@ WElement remoteContents[] = {
     W1("Droid Remote Setup"),
     WCheckbox("Droid Remote Enabled", "remoteenabled",
         []() { return remoteEnabled; },
-        [](bool val) { remoteEnabled = val; if (remoteEnabled) wifiEnabled = false; } ),
+        [](bool val) { remoteEnabled = val; } ),
     WLabel("Droid Remote Disables WiFi", "label1"),
     WHR(),
     WTextField("Device Name:", "hostname",
@@ -276,7 +275,6 @@ WElement remoteContents[] = {
     WButton("Save", "save", []() {
         DEBUG_PRINTLN("Remote Changed");
         preferences.putBool(PREFERENCE_REMOTE_ENABLED, remoteEnabled);
-        preferences.putBool(PREFERENCE_WIFI_ENABLED, wifiEnabled);
         preferences.putString(PREFERENCE_REMOTE_HOSTNAME, remoteHostName);
         preferences.putString(PREFERENCE_REMOTE_SECRET, remoteSecret);
         reboot();
