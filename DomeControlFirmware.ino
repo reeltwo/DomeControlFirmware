@@ -1746,6 +1746,26 @@ void processConfigureCommand(const char* cmd)
             reboot();
         }
     }
+    else if (startswith_P(cmd, F("#DPRNAME")))
+    {
+        String newName = String(cmd);
+        if (preferences.getString(PREFERENCE_REMOTE_HOSTNAME, SMQ_HOSTNAME) != newName)
+        {
+            preferences.putString(PREFERENCE_REMOTE_HOSTNAME, cmd);
+            printf("Changed.\n");
+            reboot();
+        }
+    }
+    else if (startswith_P(cmd, F("#DPRSECRET")))
+    {
+        String newSecret = String(cmd);
+        if (preferences.getString(PREFERENCE_REMOTE_SECRET, SMQ_HOSTNAME) != newSecret)
+        {
+            preferences.putString(PREFERENCE_REMOTE_SECRET, newSecret);
+            printf("Changed.\n");
+            reboot();
+        }
+    }
  #endif
 #endif
     else if (startswith_P(cmd, F("#DPCONFIG")))
