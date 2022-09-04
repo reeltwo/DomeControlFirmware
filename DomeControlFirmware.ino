@@ -139,12 +139,6 @@
 #define SYREN_ADDRESS_OUTPUT    129
 
 #define DOME_SENSOR_SERIAL          Serial1
-#ifndef DOME_DRIVE_SERIAL_WRITE
-#else
- #define DOME_DRIVE_SERIAL          Serial2
- #define DOME_DRIVE_SERIAL_WRITE    Serial2
- #define DOME_DRIVE_SERIAL_READ     Serial2
-#endif
 #define CONSOLE_BUFFER_SIZE     300
 #define COMMAND_BUFFER_SIZE     256
 
@@ -155,6 +149,14 @@
 ///////////////////////////////////
 
 #include "pin-map.h"
+
+///////////////////////////////////
+
+#ifndef DOME_DRIVE_SERIAL_WRITE
+ #define DOME_DRIVE_SERIAL          Serial2
+ #define DOME_DRIVE_SERIAL_WRITE    Serial2
+ #define DOME_DRIVE_SERIAL_READ     Serial2
+#endif
 
 ///////////////////////////////////
 
@@ -359,6 +361,7 @@ bool sDomeHasMovedManually = false;
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifdef USE_WIFI
 String getHostName()
 {
     String mac = wifiAccess.getMacAddress();
@@ -367,6 +370,7 @@ String getHostName()
     hostName = WIFI_AP_NAME+String("-")+hostName;
     return hostName;
 }
+#endif
 
 ///////////////////////////////////
 
@@ -1192,7 +1196,6 @@ static const char* sOnOffStrings[] = {
 #include "menus/DomeAutoSpeedScreen.h"
 #include "menus/DomeSpeedScreen.h"
 #include "menus/EraseSettingsScreen.h"
-#include "menus/WiFiModeScreen.h"
 #include "menus/HomeModeScreen.h"
 #include "menus/MainScreen.h"
 #include "menus/SerialBaudRateScreen.h"
@@ -1212,6 +1215,9 @@ static const char* sOnOffStrings[] = {
 #include "menus/SettingsScreen.h"
 #include "menus/SettingsUpdatedScreen.h"
 #include "menus/SplashScreen.h"
+#ifdef USE_WIFI
+#include "menus/WiFiModeScreen.h"
+#endif
 
 #endif
 
@@ -2305,6 +2311,7 @@ SMQMESSAGE(SELECT, {
 })
 #endif
 
+#ifdef USE_WIFI
 static void DisconnectRemote()
 {
 #ifdef USE_SMQ
@@ -2323,6 +2330,7 @@ static void DisconnectRemote()
     }
 #endif
 }
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 

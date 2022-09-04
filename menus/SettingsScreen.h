@@ -29,7 +29,9 @@ static const char* sSettingsMenu[] = {
     "Set PWM\nMax Pulse",
     "Set PWM\nNeutral",
     "Set PWM\nDeadband",
+#ifdef USE_WIFI
     "Set WiFi\nMode",
+#endif
     "Erase All\nSettings"
 };
 
@@ -61,7 +63,9 @@ public:
         kSetMaxPulse,
         kSetNeutralPulse,
         kSetDeadbandPercent,
+    #ifdef USE_WIFI
         kSetWifiMode,
+    #endif
         kEraseAllSettings
     };
     SettingsScreen() :
@@ -144,9 +148,11 @@ public:
             case kSetDeadbandPercent:
                 pushScreen(kSetDeadbandPercentScreen);
                 break;
+        #ifdef USE_WIFI
             case kSetWifiMode:
                 pushScreen(kWiFiModeScreen);
                 break;
+        #endif
             case kEraseAllSettings:
                 pushScreen(kEraseSettingsScreen);
                 break;
