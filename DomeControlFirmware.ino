@@ -713,15 +713,18 @@ EEPROMSettings<DomeControllerSettings> sSettings;
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef PWM_INPUT_PIN
-#ifdef ESP32
-static void pulseInputChanged(int pin, uint16_t pulse)
+static void pulseInputChanged(
+  #ifdef ESP32
+    int pin,
+  #endif
+    uint16_t pulse)
 {
     float drive = 0;
     long min_pulse = sSettings.fPWMMinPulse;
     long neutral_pulse = sSettings.fPWMNeutralPulse;
     long max_pulse = sSettings.fPWMMaxPulse;
     uint8_t deadband = sSettings.fPWMDeadbandPercent;
-    printf("pulse: %d [%d:%d:%d]\n", pulse, int(min_pulse), int(max_pulse), int(neutral_pulse));
+    // printf("pulse: %d [%d:%d:%d]\n", pulse, int(min_pulse), int(max_pulse), int(neutral_pulse));
     if (pulse > min_pulse && pulse < max_pulse)
     {
         if (pulse < neutral_pulse)
@@ -741,46 +744,19 @@ static void pulseInputChanged(int pin, uint16_t pulse)
             sDomeHasMovedManually = true;
             restoreDomeSettings();
         }
-        printf("DOME: %d\n", int(drive * 100));
+        DEBUG_PRINT("PWM: "); DEBUG_PRINTLN(int(drive * 100));
         if (sSettings.fPWMInput)
             sDomeDrive.driveDome(drive);
     }
     else
     {
-        printf("BAD PULSE\n");
+        DEBUG_PRINTLN("BAD PULSE");
     }
 }
 
+#ifdef ESP32
 PWMDecoder pulseInput(pulseInputChanged, PWM_INPUT_PIN);
 #else
-static void pulseInputChanged(uint16_t pulse)
-{
-    float drive = 0;
-    long min_pulse = sSettings.fPWMMinPulse;
-    long neutral_pulse = sSettings.fPWMNeutralPulse;
-    long max_pulse = sSettings.fPWMMaxPulse;
-    uint8_t deadband = sSettings.fPWMDeadbandPercent;
-    if (pulse < neutral_pulse)
-    {
-        drive = -float(pulse - min_pulse) / (neutral_pulse - min_pulse);
-    }
-    else
-    {
-        drive = float(pulse - neutral_pulse) / (max_pulse - neutral_pulse);
-    }
-    if (float(deadband)/100 >= abs(drive))
-    {
-        drive = 0;
-    }
-    else if (!sDomeHasMovedManually)
-    {
-        sDomeHasMovedManually = true; 
-        restoreDomeSettings();
-    }
-    if (sSettings.fPWMInput)
-        sDomeDrive.driveDome(drive);
-}
-
 ServoDecoder pulseInput(PWM_INPUT_PIN, pulseInputChanged);
 #endif
 #endif
@@ -918,6 +894,8 @@ void configureCommandSerial()
 #endif
 }
 
+//////////////////////////////////////////////////////////////////////////
+
 void setup()
 {
     REELTWO_READY();
@@ -999,6 +977,7 @@ void setup()
             sDisplay.invertDisplay(false);
             sDisplay.clearDisplay();
             sDisplay.setRotation(2);
+            sDisplay.setTextColor(WHITE);
         }
     }
 #endif
@@ -2613,6 +2592,7 @@ void mainLoop()
         }
         else if (pulseInput.becameActive())
         {
+            Serial.println(F("PWM Input Active"));
         #ifdef STATUSLED_PIN
             statusLED.setMode(sCurrentMode + 3);
         #endif
