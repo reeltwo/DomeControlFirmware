@@ -16,6 +16,49 @@ This is the sketch for the Roam-A-Dome-Home (RDH) setup.
 <li>https://github.com/reeltwo/PCF8574</li>
 </ul>
 
+## Build using Arduino IDE
+
+The firmware should build with esp32 board package 1.0.6 or 2.0.5. For ESP32S2 support 2.0.5 is required.
+
+## Build using command line tools (Mac)
+
+    cd ~/Documents/Arduino
+    curl -o Arduino.mk https://raw.githubusercontent.com/reeltwo/Arduino/master/Arduino.mk
+    # Fetch repository
+    git clone https://github.com/reeltwo/DomeControlFirmware
+    # Enter directory
+    cd DomeControlFirmware
+    # Build firmware for version 3 compact PCB
+    make
+    # Build firmware for version 4 with LVGL graphics display
+    make TARGET=ESP32S3
+    # Build firmware for full size Arduino Mega PCB (LCD and rotatry dial)
+    make TARGET=Mega
+    # Build firwmare for full size ESP32 PCB (LCD and rotatry dial)
+    make FULLSIZE=1
+    # Build firmware for barebones ESP32 (no display and no rotary dial)
+    make LILYGO=1
+
+
+## Build using command line tools (Linux)
+
+    cd ~/Arduino
+    wget https://raw.githubusercontent.com/reeltwo/Arduino/master/Arduino.mk
+    # Fetch repository
+    git clone  https://github.com/reeltwo/DomeControlFirmware
+    # Enter directory
+    cd DomeControlFirmware
+    # Build firmware for version 3 compact PCB
+    make
+    # Build firmware for version 4 with LVGL graphics display
+    make TARGET=ESP32S3
+    # Build firmware for full size Arduino Mega PCB (LCD and rotatry dial)
+    make TARGET=Mega
+    # Build firwmare for full size ESP32 PCB (LCD and rotatry dial)
+    make FULLSIZE=1
+    # Build firmware for barebones ESP32 (no display and no rotary dial)
+    make LILYGO=1
+
 ## Sample wiring diagram for Shadow based systems
 
 ![Wiring diagram for Shadow](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/main/images/RDH-Shadow.png)
@@ -34,17 +77,56 @@ Factory reset all settings in EEPROM
 
     #DPZERO
 
+`#DPSETUP`:
+Inital setup. Will figure out minimum speed and if inversion is needed.
+*Examples*:
+
+    #DPSETUP
+
+`#DPDEBUG`[1|0]:
+**ESP32** Enables/disables debug output in dome positioning code.
+*Examples*:
+
+    #DPDEBUG1 (enable debug output)
+    #DPDEBUG0 (disable debug output)
+
+`#DPWIFI`[1|0]:
+**ESP32** Enables/disables WiFi support.
+*Examples*:
+
+    #DPWIFI1 (enable WiFi support)
+    #DPWIFI0 (disable WiFi support)
+
+`#DPREMOTE`[1|0]:
+**ESP32** Enables/disables droid remote support.
+*Examples*:
+
+    #DPREMOTE1 (enable droid remote support)
+    #DPREMOTE0 (disable droid remote support)
+
+`#DPRNAME`[string]:
+**ESP32** Change the droid remote host name. The default name is "RoamADome".
+*Examples*:
+
+    #DPRNAMEMyDome (changes reported name for droid remote to "MyDome")
+
+`#DPRSECRET`[string]:
+**ESP32** Change the droid remote secret string. The default secret is "Astromech". If you plan on leaving the droid remote support enabled outside your workshop you should change the shared secret so it is not affected by other droids.
+*Examples*:
+
+    #DPRSECRETMySecret (changes shared secret for droid remote to "MySecret")
+
 `#DPCONFIG`:
 List all settings in EEPROM
 *Examples*:
 
     #DPCONFIG
 
-`#DPSETUP`:
-Inital setup. Will figure out minimum speed and if inversion is needed.
+`#DPSTATUS`:
+Display status information for the dome controller.
 *Examples*:
 
-    #DPSETUP
+    #DPSTATUS
 
 `#DPRESTART`:
 Reboot the controller.
@@ -155,21 +237,21 @@ Set new dome home position to the current position. Or optionally specify the ho
     #DPHOMEPOS (set new dome home position to the current position)
     #DPHOMEPOS10 (set new dome home position to 10)
 
-`#DPHOME`[number]:
+`#DPHOME`[0|1]:
 Enable/disable dome home mode 0 or 1 (default disabled 0)
 *Examples*:
 
     #DPHOME0 (disable dome home mode)
     #DPHOME1 (enable dome home mode)
 
-`#DPAUTO`[number]:
+`#DPAUTO`[0|1]:
 Enable/disable dome random auto mode 0 or 1 (default disabled 0)
 *Examples*:
 
     #DPAUTO0 (disable dome random auto mode)
     #DPAUTO1 (enable dome random auto mode)
 
-`#DPSCALE`[number]:
+`#DPSCALE`[0|1]:
 Enable/disable dome speed scaling/ramping (default disabled 0)
 *Examples*:
 
@@ -188,14 +270,14 @@ Set dome speed acceleration scale to 0-255 (default 100). Lower value means dece
 
     #DPDSCALE100 (set dome acceleration scale to 20)
 
-`#DPINVERT`[number]:
+`#DPINVERT`[0|1]:
 Enable/disable dome motor inversion 0 or 1 (default disabled 0)
 *Examples*:
 
     #DPINVERT0 (disable dome motor inversion)
     #DPINVERT1 (enable dome motor inversion)
 
-`#DPAUTOSAFETY`[number]:
+`#DPAUTOSAFETY`[0|1]:
 Enable/disable automatic dome movement safety check 0 or 1 (default disabled 0)
 *Examples*:
 
@@ -208,28 +290,28 @@ Set movement timeout delay in seconds. If dome has not changed position before t
 
     #DPTIMEOUT5 (set timeout value to 5 seconds)
 
-`#DPSERIALIN`[number]:
+`#DPSERIALIN`[0|1]:
 Enable/disable packet serial input 0 or 1 (default enabled 1)
 *Examples*:
 
     #DPSERIALIN0 (disable packet serial input)
     #DPSERIALIN1 (enable packet serial input)
 
-`#DPSERIALOUT`[number]:
+`#DPSERIALOUT`[0|1]:
 Enable/disable packet serial output 0 or 1 (default enabled 1)
 *Examples*:
 
     #DPSERIALOUT0 (disable packet serial output)
     #DPSERIALOUT1 (enable packet serial output)
 
-`#DPPWMIN`[number]:
+`#DPPWMIN`[0|1]:
 Enable/disable PWM input 0 or 1 (default disabled 0)
 *Examples*:
 
     #DPPWMIN0 (disable PWM input)
     #DPPWMIN1 (enable PWM input)
 
-`#DPPWMOUT`[number]:
+`#DPPWMOUT`[0|1]:
 Enable/disable PWM output 0 or 1 (default disabled 0)
 *Examples*:
 
@@ -241,6 +323,31 @@ Specify command serial baud rate 2400,9600,19200,384000 (default 9600)
 *Examples*:
 
     #DPSERIALBAUD9600 (set command Serial baud rate to 9600)
+
+`#DPSABERBAUD`[number]:
+Specify command Syren/Sabertooth packet serial baud rate 2400,9600,19200,384000 (default 9600)
+*Examples*:
+
+    #DPSABERBAUD9600 (set Syren/Sabertooth baud rate to 9600)
+
+`#DPSABERADDRIN`[number]:
+Specify command Syren/Sabertooth packet serial input address (default 129)
+*Examples*:
+
+    #DPSABERADDRIN129 (set Syren/Sabertooth input address to 129)
+
+`#DPSABERADDROUT`[number]:
+Specify command Syren/Sabertooth packet serial output address (default 129)
+*Examples*:
+
+    #DPSABERADDROUT129 (set Syren/Sabertooth output address to 129)
+
+`#DPSENSORBAUD`[number]:
+Specify command serial baud rate 57600 or 115200 (default 115200)
+*Examples*:
+
+    #DPSENSORBAUD57600 (set command Serial baud rate to 57600)
+    #DPSENSORBAUD115200 (set command Serial baud rate to 115200)
 
 `#DPPIN`[pin][number]:
 Specify default value (0,1) for pin (1-8)
