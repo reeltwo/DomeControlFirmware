@@ -8,7 +8,7 @@ class SaberBaudRateScreen : public ChoiceIntArrayScreen
 {
 public:
     SaberBaudRateScreen(ScreenID id = kSaberBaudRateScreen) :
-        ChoiceIntArrayScreen(id, sSaberBaudRates, SizeOfArray(sSaberBaudRates))
+        ChoiceIntArrayScreen(id, sBaudRates, SizeOfArray(sBaudRates))
     {
     }
 
