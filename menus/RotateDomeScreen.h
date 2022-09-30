@@ -16,7 +16,8 @@ public:
     virtual void init() override
     {
         fLastDisplayPos = -1;
-        sDomePosition.setDomeDefaultMode(DomePosition::kTarget);
+        sDomePosition.setDomeMode(DomePosition::kOff);
+        sDomePosition.setDomeDefaultMode(DomePosition::kOff);
         sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition());
     }
 
@@ -61,33 +62,33 @@ public:
 
     virtual void buttonUpPressed(bool repeat) override
     {
-        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.getDomeMode() == DomePosition::kOff)
         {
-            sDomePosition.setDomeTargetPosition(int(sDomePosition.getDomePosition()) - 90);
+            setDomeTarget(sDomePosition.getDomePosition() + 90);
         }
     }
 
     virtual void buttonLeftPressed(bool repeat) override
     {
-        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.getDomeMode() == DomePosition::kOff)
         {
-            sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 10);
+            setDomeTarget(sDomePosition.getDomePosition() + 10);
         }
     }
 
     virtual void buttonDownPressed(bool repeat) override
     {
-        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.getDomeMode() == DomePosition::kOff)
         {
-            sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() - 90);
+            setDomeTarget(int(sDomePosition.getDomePosition()) - 90);
         }
     }
 
     virtual void buttonRightPressed(bool repeat) override
     {
-        if (sDomePosition.ready() && sDomePosition.isAtPosition(sDomePosition.getDomeTargetPosition()))
+        if (sDomePosition.ready() && sDomePosition.getDomeMode() == DomePosition::kOff)
         {
-            sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition() + 10);
+            setDomeTarget(int(sDomePosition.getDomePosition()) - 10);
         }
     }
 
@@ -98,7 +99,7 @@ public:
             long target = (long)fmod(newValue, 24) * 15;
             if (target < 0)
                 target += 360;
-            sDomePosition.setDomeTargetPosition(target);
+            setDomeTarget(target);
         }
     }
 
@@ -112,6 +113,15 @@ protected:
     uint32_t fLastScreenUpdate = 0;
     int16_t fLastPos = -1;
     int16_t fLastDisplayPos = -1;
+
+    void setDomeTarget(long target)
+    {
+        sDomePosition.setDomeTargetPosition(target);
+        sDomePosition.setDomeMode(DomePosition::kTarget);
+        sDomePosition.setTargetReached([]() {
+            sDomePosition.setDomeDefaultMode(DomePosition::kOff);
+        });
+    }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
