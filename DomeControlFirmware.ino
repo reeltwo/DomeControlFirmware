@@ -17,7 +17,8 @@
 #ifdef ESP32
 #if !defined(ROAM_A_DOME_FULLSIZE_PCB) && \
     !defined(ROAM_A_DOME_COMPACT_PCB) && \
-    !defined(LILYGO_MINI32)
+    !defined(LILYGO_MINI32) && \
+    !defined(ROAM_A_DOME_DISPLAY)
 #error
 //#define ROAM_A_DOME_FULLSIZE_PCB
 #define ROAM_A_DOME_COMPACT_PCB
@@ -43,7 +44,9 @@
 #endif
 #undef  USE_SERVOS                    // Define is enabling servo output on digital out pins
 #define USE_DOME_DEBUG                // Define for dome drive mode debug
-//#undef  USE_VERBOSE_DOME_DEBUG        // Define for dome motor specific debug
+#ifdef ESP32
+#define USE_VERBOSE_DOME_DEBUG        // Define for dome motor specific debug
+#endif
 #undef  USE_DOME_SENSOR_SERIAL_DEBUG  // Define for dome sensor ring specific debug
 #undef  USE_SCREEN_DEBUG
 #ifdef ESP32
@@ -66,15 +69,17 @@
 
 ///////////////////////////////////
 
-#ifdef USE_WIFI
+#ifdef USE_DROID_REMOTE
 #define REMOTE_ENABLED                  false
+#define SMQ_HOSTNAME                    "RoamADome"
+#define SMQ_SECRET                      "Astromech"
+#endif
+#ifdef USE_WIFI
 #define WIFI_ENABLED                    true
 // Set these to your desired credentials.
 #define WIFI_AP_NAME                    "RoamADome"
 #define WIFI_AP_PASSPHRASE              "Astromech"
 #define WIFI_ACCESS_POINT               true  /* true if access point: false if joining existing wifi */
-#define SMQ_HOSTNAME                    "RoamADome"
-#define SMQ_SECRET                      "Astromech"
 
 #define MARC_SERIAL_BAUD_RATE           9600
 #define MARC_WIFI_ENABLED               true
@@ -142,7 +147,13 @@
 #define CONSOLE_BUFFER_SIZE     300
 #define COMMAND_BUFFER_SIZE     256
 
+#ifdef ESP32
+// Default dome sensor baud rate is 115200 for ESP32
+#define DOME_SENSOR_SERIAL_BAUD 115200
+#else
+// Default dome sensor baud rate is 57600 for Mega
 #define DOME_SENSOR_SERIAL_BAUD 57600
+#endif
 
 #define PACKET_SERIAL_TIMEOUT   1500
 
@@ -232,6 +243,47 @@
 
 ///////////////////////////////////
 
+#ifdef USE_LVGL_DISPLAY
+#include "core/PushButton.h"
+#include "TFT_eSPI.h"
+#include "lvgl.h"
+
+#define SCREEN_WIDTH            320     // OLED display width, in pixels
+#define SCREEN_HEIGHT           170     // OLED display height, in pixels
+#define SCREEN_BUFFER_SIZE      (SCREEN_WIDTH * SCREEN_HEIGHT)
+
+#define LV_DELAY(x) {                                               \
+  uint32_t start = millis();                                        \
+  do {                                                              \
+    lv_timer_handler();                                             \
+    delay(1);                                                       \
+  } while (millis() < start + (x));                                 \
+}
+
+TFT_eSPI tft = TFT_eSPI();
+static lv_disp_drv_t disp_drv;      // contains callback functions
+static lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
+static lv_color_t *lv_disp_buf;
+PushButton button1(PIN_BUTTON_1, true);
+PushButton button2(PIN_BUTTON_2, true);
+
+////////////////////////////////
+
+LV_FONT_DECLARE(lv_font_Astromech);
+LV_FONT_DECLARE(lv_font_montserrat_32);
+LV_IMG_DECLARE(r2d2_gif);
+
+////////////////////////////////
+
+static const lv_font_t* font_large = &lv_font_Astromech;
+static const lv_font_t* font_normal = &lv_font_montserrat_32;
+
+#endif
+
+///////////////////////////////////
+
+// STATUSLED cannot support PWM INPUT until Adafruit_NeoPixel is fixed or replaced
+#undef STATUSLED_PIN
 #ifdef STATUSLED_PIN
 #include "core/SingleStatusLED.h"
 
@@ -337,6 +389,9 @@ PinManager sPinManager;
 WifiAccess wifiAccess;
 bool wifiEnabled;
 bool wifiActive;
+#endif
+
+#ifdef USE_DROID_REMOTE
 bool remoteEnabled;
 bool remoteActive;
 #endif
@@ -403,8 +458,13 @@ void unmountFileSystems()
 
 #define SCREEN_ADDRESS 0x3C
 
-#include "menus/CommandScreenHandlerSSD1306.h"
-CommandScreenHandlerSSD1306 sDisplay(sPinManager);
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "menus/CommandScreenDisplay.h"
+Adafruit_SSD1306 sLCD(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+CommandScreenDisplay<Adafruit_SSD1306> sDisplay(sLCD, sPinManager, []() {
+    return sLCD.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
+});
 
 #else
 
@@ -490,6 +550,11 @@ class DomeSensorRingEmulator: public DomePositionProvider
 public:
     DomeSensorRingEmulator()
     {
+    }
+
+    inline unsigned getErrorCount()
+    {
+        return 0;
     }
 
     virtual bool ready() override
@@ -660,6 +725,7 @@ struct DomeControllerSettings
     uint8_t fSaberAddressInput = SYREN_ADDRESS_INPUT;
     uint8_t fSaberAddressOutput = SYREN_ADDRESS_OUTPUT;
     uint16_t fHomePosition = DEFAULT_HOME_POSITION;
+    uint32_t fSensorBaudRate = DOME_SENSOR_SERIAL_BAUD;
     uint32_t fSaberBaudRate = DEFAULT_SABER_BAUD;
     uint32_t fSerialBaudRate = DEFAULT_SERIAL_BAUD;
     bool fPacketSerialInput = DEFAULT_PACKET_SERIAL_INPUT;
@@ -713,12 +779,7 @@ EEPROMSettings<DomeControllerSettings> sSettings;
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef PWM_INPUT_PIN
-static void pulseInputChanged(
-  #ifdef ESP32
-    int pin,
-  #endif
-    uint16_t pulse)
-{
+ServoDecoder pulseInput([](int pin, uint16_t pulse) {
     float drive = 0;
     long min_pulse = sSettings.fPWMMinPulse;
     long neutral_pulse = sSettings.fPWMNeutralPulse;
@@ -752,13 +813,7 @@ static void pulseInputChanged(
     {
         DEBUG_PRINTLN("BAD PULSE");
     }
-}
-
-#ifdef ESP32
-PWMDecoder pulseInput(pulseInputChanged, PWM_INPUT_PIN);
-#else
-ServoDecoder pulseInput(PWM_INPUT_PIN, pulseInputChanged);
-#endif
+}, PWM_INPUT_PIN);
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -849,6 +904,16 @@ static void restoreDomeSettings()
         setDigitalPin(i+1, pins & 1);
         pins >>= 1;
     }
+#ifdef ESP32
+    if (sSettings.fPWMInput)
+    {
+        pulseInput.begin();
+    }
+    else
+    {
+        // pulseInput.end();
+    }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -894,17 +959,97 @@ void configureCommandSerial()
 #endif
 }
 
+////////////////////////////////
+
+#ifdef USE_LVGL_DISPLAY
+
+static void astro_lvgl_flush_cb(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* color_p)
+{
+    uint32_t w = ( area->x2 - area->x1 + 1 );
+    uint32_t h = ( area->y2 - area->y1 + 1 );
+
+    tft.startWrite();
+    tft.setAddrWindow( area->x1, area->y1, w, h );
+    tft.pushColors( ( uint16_t * )&color_p->full, w * h, false );
+    tft.endWrite();
+
+    lv_disp_flush_ready( disp );
+}
+
+////////////////////////////////
+
+void setupLVGLDisplay()
+{
+    pinMode(PIN_POWER_ON, OUTPUT);
+    digitalWrite(PIN_POWER_ON, HIGH);
+
+    lv_init();
+    lv_disp_buf = (lv_color_t *)heap_caps_malloc(SCREEN_BUFFER_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+
+    tft.begin();          /* TFT init */
+    tft.setRotation( 3 ); /* Landscape orientation, flipped */
+
+    lv_disp_draw_buf_init(&disp_buf, lv_disp_buf, NULL, SCREEN_BUFFER_SIZE);
+
+    /*Initialize the display*/
+    lv_disp_drv_init(&disp_drv);
+    /*Change the following line to your display resolution*/
+    disp_drv.hor_res = SCREEN_WIDTH;
+    disp_drv.ver_res = SCREEN_HEIGHT;
+    disp_drv.flush_cb = astro_lvgl_flush_cb;
+    disp_drv.draw_buf = &disp_buf;
+    lv_disp_drv_register(&disp_drv);
+
+    // draw r2d2
+    lv_obj_t *logo_img = lv_gif_create(lv_scr_act());
+    lv_obj_center(logo_img);
+    lv_gif_set_src(logo_img, &r2d2_gif);
+    LV_DELAY(3440);
+    lv_obj_del(logo_img);
+
+    button1.attachClick([]() {
+        printf("BUTTON 1\n");
+        // pinMode(PIN_POWER_ON, OUTPUT);
+        // pinMode(PIN_LCD_BL, OUTPUT);
+        // digitalWrite(PIN_POWER_ON, LOW);
+        // digitalWrite(PIN_LCD_BL, LOW);
+        // esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BUTTON_2, 0); // 1 = High, 0 = Low
+        // esp_deep_sleep_start();
+    });
+    button2.attachClick([]() {
+        printf("BUTTON 2\n");
+    });
+}
+
+#include "StatusDisplayLVGL.h"
+StatusDisplayLVGL statusDisplay;
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 
 void setup()
 {
     REELTWO_READY();
-#ifdef DOME_SENSOR_SERIAL
- #ifdef ESP32
-    DOME_SENSOR_SERIAL.begin(DOME_SENSOR_SERIAL_BAUD, SERIAL_8N1, RXD1_PIN, 0 /* not used */);
- #else
-    DOME_SENSOR_SERIAL.begin(DOME_SENSOR_SERIAL_BAUD);
- #endif
+
+#ifdef USE_SPIFFS
+    if (!mountReadOnlyFileSystem())
+    {
+        DEBUG_PRINTLN("Failed to mount filesystem");
+    }
+    else
+    {
+        printf("SPIFFS MOUNTED\n");
+        FILE* f = fopen("/spiffs/splash.gif", "r");
+        if (f != nullptr)
+        {
+            printf("FOUND splash.gif\n");
+            fclose(f);
+        }
+        else
+        {
+            printf("NOT FOUND\n");
+        }
+    }
 #endif
 
 #ifdef USE_PREFERENCES
@@ -912,7 +1057,9 @@ void setup()
     {
         DEBUG_PRINTLN("Failed to init prefs");
     }
+#ifdef USE_WIFI
     wifiEnabled = wifiActive = preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED);
+#endif
     remoteEnabled = remoteActive = preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED);
 #endif
 
@@ -938,24 +1085,40 @@ void setup()
             Serial.println(F("Readback Success"));
         }
     }
+#ifdef DOME_SENSOR_SERIAL
+ #ifdef ESP32
+    printf("DOME_SENSOR_SERIAL.begin(rx=%d tx=%d) baudrate=%d\n", RXD1_PIN, TXD1_PIN, sSettings.fSensorBaudRate);
+    DOME_SENSOR_SERIAL.setRxBufferSize(1024);
+    DOME_SENSOR_SERIAL.begin(sSettings.fSensorBaudRate, SERIAL_8N1, RXD1_PIN, TXD1_PIN);
+ #else
+    DOME_SENSOR_SERIAL.begin(sSettings.fSensorBaudRate);
+ #endif
+#endif
 #ifdef ESP32
     if ((void*)&DOME_DRIVE_SERIAL_READ != (void*)&DOME_DRIVE_SERIAL_WRITE)
     {
         // We only use hardware serial to read Syren commands
         DOME_DRIVE_SERIAL_READ.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, 0 /*not used*/);
+        printf("DOME_DRIVE_SERIAL_READ rxpin=%d\n", RXD2_PIN);
     }
 #endif
+    printf("Calling configureCommandSerial\n");
     configureCommandSerial();
+    printf("Calling configureDomeDrive\n");
     configureDomeDrive();
 
+    printf("Calling setBaudRate\n");
     sDomeDrive.setBaudRate(sSettings.fSaberBaudRate);
+    printf("Calling setAddress\n");
     sDomeDrive.setAddress(sSettings.fSaberAddressOutput);
 
+    printf("Calling SetupEvent::ready\n");
     SetupEvent::ready();
 
     // N.B.: Must call pinMode() before begin()
     for (unsigned i = 0; i < SizeOfArray(sDigitalPin); i++)
     {
+    printf("Calling pinMode(%d)\n", sDigitalPin[i]);
         sPinManager.pinMode(sDigitalPin[i], OUTPUT);
     }
     sPinManager.begin();
@@ -971,7 +1134,7 @@ void setup()
     if (!Wire.getWireTimeoutFlag())
 #endif
     {
-        sDisplay.setEnabled(sDisplay.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS));
+        sDisplay.setEnabled(sDisplay.begin());
         if (sDisplay.isEnabled())
         {
             sDisplay.invertDisplay(false);
@@ -980,6 +1143,10 @@ void setup()
             sDisplay.setTextColor(WHITE);
         }
     }
+#endif
+
+#ifdef USE_LVGL_DISPLAY
+    setupLVGLDisplay();
 #endif
 
 #ifdef USE_PREFERENCES
@@ -1016,6 +1183,7 @@ void setup()
         }
     #endif
     }
+#ifdef USE_WIFI
     if (wifiEnabled)
     {
     #ifdef USE_WIFI_WEB
@@ -1100,6 +1268,7 @@ void setup()
     #endif
     }
 #endif
+#endif
 
     restoreDomeSettings();
     sDomeDrive.setDomePosition(&sDomePosition);
@@ -1129,16 +1298,20 @@ void setup()
 static byte sReadBuffer[4];
 static uint8_t sReadPos;
 static bool sSerialMotorActivity;
-static uint32_t sLastSerialData;
+static uint32_t sPacketSerialErrors;
 static uint32_t sLastSerialMotorEvent;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static unsigned sSaberBaudRates[] = {
+static unsigned sBaudRates[] = {
     2400,
     9600,
     19200,
-    38400
+    38400,
+    57600
+#ifdef ESP32
+    ,115200
+#endif
 };
 
 #ifdef USE_MENUS
@@ -1571,9 +1744,12 @@ bool processDomePositionCommand(const char* cmd)
 
 static void updateSettings()
 {
+    printf("restoreDomeSettings\n");
     restoreDomeSettings();
+    printf("sSettings.write\n");
     sSettings.write();
     Serial.println(F("Updated"));
+    printf("Updated\n");
 #ifdef USE_WIFI_WEB
     sUpdateSettings = false;
 #endif
@@ -1656,7 +1832,9 @@ void reboot()
 {
     Serial.println(F("Restarting..."));
 #ifdef ESP32
+ #ifdef USE_DROID_REMOTE
     DisconnectRemote();
+#endif
     pulseInput.end();
     unmountFileSystems();
 #ifdef USE_PREFERENCES
@@ -1687,6 +1865,24 @@ void processConfigureCommand(const char* cmd)
     {
         reboot();
     }
+#if defined(USE_VERBOSE_DOME_DEBUG) && defined(ESP32)
+    else if (startswith_P(cmd, F("#DPDEBUG")) && isdigit(*cmd))
+    {
+        bool debugSetting = (strtolu(cmd, &cmd) == 1);
+        if (sVerboseDomeDebug != debugSetting)
+        {
+            if (debugSetting)
+            {
+                Serial.println(F("Debug Enabled"));
+            }
+            else
+            {
+                Serial.println(F("Debug Disabled"));
+            }
+            sVerboseDomeDebug = debugSetting;
+        }
+    }
+#endif
 #ifdef USE_WIFI
     else if (startswith_P(cmd, F("#DPWIFI")) && isdigit(*cmd))
     {
@@ -1706,7 +1902,8 @@ void processConfigureCommand(const char* cmd)
             reboot();
         }
     }
- #ifdef USE_DROID_REMOTE
+#endif
+#ifdef USE_DROID_REMOTE
     else if (startswith_P(cmd, F("#DPREMOTE")) && isdigit(*cmd))
     {
         bool remoteSetting = (strtolu(cmd, &cmd) == 1);
@@ -1745,8 +1942,59 @@ void processConfigureCommand(const char* cmd)
             reboot();
         }
     }
- #endif
 #endif
+    else if (startswith_P(cmd, F("#DPSTATUS")))
+    {
+        unsigned errorCount = sDomeRing.getErrorCount();
+        if (sSettings.fAutoSafety && !sDomeHasMovedManually)
+        {
+            Serial.println(F("Auto Safety Engaged"));
+        }
+        else
+        {
+            Serial.println(F("Auto Safety Disengaged"));
+        }
+        if (pulseInput.isActive())
+        {
+            Serial.println(F("Pulse Input Active"));
+        }
+        if (sSerialMotorActivity)
+        {
+            Serial.println(F("Receiving Packet Serial"));
+        }
+        if (sPacketSerialErrors != 0)
+        {
+            Serial.print(F("Packet Serial Errors: ")); Serial.println(sPacketSerialErrors);
+        }
+        if (errorCount != 0)
+        {
+            Serial.print(F("Dome Sensor Errors: ")); Serial.println(errorCount);
+        }
+        else
+        {
+            Serial.println(F("No Dome Sensor Errors"));
+        }
+    #ifdef USE_WIFI
+        if (wifiEnabled)
+        {
+            Serial.println(F("WiFi Enabled"));
+        }
+        else
+        {
+            Serial.println(F("WiFi Disabled"));
+        }
+    #endif
+    #ifdef USE_DROID_REMOTE
+        if (remoteEnabled)
+        {
+            Serial.println(F("Remote Enabled"));
+        }
+        else
+        {
+            Serial.println(F("Remote Disabled"));
+        }
+     #endif
+    }
     else if (startswith_P(cmd, F("#DPCONFIG")))
     {
         Serial.print(F("HomePos=")); Serial.println(sSettings.fHomePosition);
@@ -1774,6 +2022,7 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("SpeedTarget=")); Serial.println(sSettings.fDomeSpeedTarget);
         Serial.print(F("SaberAddressIn=")); Serial.println(sSettings.fSaberAddressInput);
         Serial.print(F("SaberAddressOut=")); Serial.println(sSettings.fSaberAddressOutput);
+        Serial.print(F("SensorBaud=")); Serial.println(sSettings.fSensorBaudRate);
         Serial.print(F("SaberBaud=")); Serial.println(sSettings.fSaberBaudRate);
         Serial.print(F("SerialBaud=")); Serial.println(sSettings.fSerialBaudRate);
         Serial.print(F("SerialIn=")); Serial.println(sSettings.fPacketSerialInput);
@@ -1784,27 +2033,6 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("PWMMaxPulse=")); Serial.println(sSettings.fPWMMaxPulse);
         Serial.print(F("PWMNeutralPulse=")); Serial.println(sSettings.fPWMNeutralPulse);
         Serial.print(F("PWMDeadband=")); Serial.println(sSettings.fPWMDeadbandPercent);
-    #ifdef USE_WIFI
-        if (wifiEnabled)
-        {
-            Serial.println(F("WiFi Enabled"));
-        }
-        else
-        {
-            Serial.println(F("WiFi Disabled"));
-        }
-    #endif
-    #ifdef USE_DROID_REMOTE
-        if (remoteEnabled)
-        {
-            Serial.println(F("Remote Enabled"));
-        }
-        else
-        {
-            Serial.println(F("Remote Disabled"));
-        }
-     #endif
-
         Serial.print(F("DOut="));
         // Write out the pins backwards (pin1 first)
         uint8_t pins = sSettings.fDigitalPins;
@@ -1824,6 +2052,11 @@ void processConfigureCommand(const char* cmd)
     {
         sSettings.listSortedCommands(Serial);
         Serial.println(F("Done"));
+    }
+    else if (startswith_P(cmd, F("#DPDSCALE")) && isdigit(*cmd))
+    {
+        int scale = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fDecScale, min(scale, MAX_DEC_SCALE));
     }
     else if (startswith_P(cmd, F("#DPD")) && isdigit(*cmd))
     {
@@ -1951,11 +2184,6 @@ void processConfigureCommand(const char* cmd)
         int scale = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fAccScale, min(scale, MAX_ACC_SCALE));
     }
-    else if (startswith_P(cmd, F("#DPDSCALE")) && isdigit(*cmd))
-    {
-        int scale = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fDecScale, min(scale, MAX_DEC_SCALE));
-    }
     else if (startswith_P(cmd, F("#DPSERIALIN")) && isdigit(*cmd))
     {
         uint32_t mode = strtolu(cmd, &cmd);
@@ -1988,12 +2216,24 @@ void processConfigureCommand(const char* cmd)
             }
         }
     }
+    else if (startswith_P(cmd, F("#DPSENSORBAUD")) && isdigit(*cmd))
+    {
+        uint32_t baudrate = strtolu(cmd, &cmd);
+        for (unsigned i = 0; i < SizeOfArray(sBaudRates); i++)
+        {
+            if (baudrate == sBaudRates[i])
+            {
+                UPDATE_SETTING(sSettings.fSensorBaudRate, baudrate);
+                break;
+            }
+        }
+    }
     else if (startswith_P(cmd, F("#DPSABERBAUD")) && isdigit(*cmd))
     {
         uint32_t baudrate = strtolu(cmd, &cmd);
-        for (unsigned i = 0; i < SizeOfArray(sSaberBaudRates); i++)
+        for (unsigned i = 0; i < SizeOfArray(sBaudRates); i++)
         {
-            if (baudrate == sSaberBaudRates[i])
+            if (baudrate == sBaudRates[i])
             {
                 UPDATE_SETTING(sSettings.fSaberBaudRate, baudrate);
                 break;
@@ -2310,7 +2550,7 @@ SMQMESSAGE(SELECT, {
 })
 #endif
 
-#ifdef USE_WIFI
+#ifdef USE_DROID_REMOTE
 static void DisconnectRemote()
 {
 #ifdef USE_SMQ
@@ -2353,6 +2593,38 @@ void mainLoop()
     AnimatedEvent::process();
 #ifdef USE_MENUS
     sDisplay.process();
+#endif
+#ifdef USE_VERBOSE_DOME_DEBUG
+  #ifdef ESP32
+    if (sVerboseDomeDebug)
+    {
+        const char* modeStr = " OFF";
+        DomePosition::Mode mode = sDomePosition.getDomeMode();
+        int pos = sDomePosition.getDomePosition();
+        static int sLastPos = -1;
+        static DomePosition::Mode sLastMode = DomePosition::kOff;
+        if (sLastMode != mode || pos != sLastPos)
+        {
+            switch (mode)
+            {
+                case DomePosition::kOff:
+                    break;
+                case DomePosition::kHome:
+                    modeStr = "HOME";
+                    break;
+                case DomePosition::kRandom:
+                    modeStr = "RAN";
+                    break;
+                case DomePosition::kTarget:
+                    modeStr = "TRGT";
+                    break;
+            }
+            printf("[%s] pos=%d\n", modeStr, pos);
+            sLastPos = pos;
+            sLastMode = mode;
+        }
+    }
+  #endif
 #endif
     // append commands to command buffer
     if (!sDomeStick.isEmulationActive() && Serial.available())
@@ -2473,7 +2745,7 @@ void mainLoop()
                 byte crc = sReadBuffer[3];
                 byte calcCRC = ((unsigned(address) + command + value) & B01111111);
             #ifdef ESP32
-                //printf("SYREN{%d}:%d:%d:%d [%d]\n", address, command, value, crc, calcCRC);
+                // printf("SYREN{%d}:%d:%d:%d [%d]\n", address, command, value, crc, calcCRC);
             #endif
                 if (address == sSettings.fSaberAddressInput && crc == calcCRC)
                 {
@@ -2537,13 +2809,17 @@ void mainLoop()
                 }
                 else
                 {
-                    DEBUG_PRINT(F("{BAD}"));
-                    DEBUG_PRINT('['); DEBUG_PRINT(address); DEBUG_PRINT(F("] "));
-                    DEBUG_PRINT(command); DEBUG_PRINT(':');
-                    DEBUG_PRINT(value); DEBUG_PRINT(F(":CRC:"));
-                    DEBUG_PRINT_HEX(crc); DEBUG_PRINT(F(":EXPECTED:"));
-                    DEBUG_PRINT_HEX(calcCRC);
-                    DEBUG_PRINTLN();
+                    if (command != 0 || value != 0 || crc != 0 || calcCRC != 0)
+                    {
+                        DEBUG_PRINT(F("{BAD}"));
+                        DEBUG_PRINT('['); DEBUG_PRINT(address); DEBUG_PRINT(F("] "));
+                        DEBUG_PRINT(command); DEBUG_PRINT(':');
+                        DEBUG_PRINT(value); DEBUG_PRINT(F(":CRC:"));
+                        DEBUG_PRINT_HEX(crc); DEBUG_PRINT(F(":EXPECTED:"));
+                        DEBUG_PRINT_HEX(calcCRC);
+                        DEBUG_PRINTLN();
+                        sPacketSerialErrors++;
+                    }
                     sReadBuffer[0] = sReadBuffer[1];
                     sReadBuffer[1] = sReadBuffer[2];
                     sReadBuffer[2] = sReadBuffer[3];
@@ -2553,7 +2829,6 @@ void mainLoop()
             while (DOME_DRIVE_SERIAL_READ.available() && sReadPos < sizeof(sReadBuffer))
             {
                 sReadBuffer[sReadPos++] = DOME_DRIVE_SERIAL_READ.read();
-                sLastSerialData = millis();
             }
         }
         while (DOME_DRIVE_SERIAL_READ.available());
@@ -2630,6 +2905,9 @@ void loop()
         SMQ::process();
     #endif
     }
+#ifdef USE_LVGL_DISPLAY
+    statusDisplay.refresh();
+#endif
 #else
     mainLoop();
  #ifdef ESP32
