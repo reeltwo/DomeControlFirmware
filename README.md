@@ -13,7 +13,7 @@ This is the sketch for the Roam-A-Dome-Home (RDH) setup.
 <li>https://github.com/adafruit/Adafruit_SSD1306</li>
 <li>https://github.com/adafruit/Adafruit_BusIO</li>
 <li>https://github.com/rimim/espsoftwareserial</li>
-<li>https://github.com/xreef/PCF8574_library</li>
+<li>https://github.com/reeltwo/PCF8574</li>
 </ul>
 
 ## Sample wiring diagram for Shadow based systems
