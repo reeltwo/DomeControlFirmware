@@ -61,6 +61,10 @@ WElement domePositionContents[] = {
     WSlider("Home Position", "homepos", 0, 359,
         []()->int { return sSettings.fHomePosition; },
         [](int val) { sSettings.fHomePosition = val; sDomePosSettingsChanged = true; } ),
+    WButtonReload("Current", "current", []() {
+        sSettings.fHomePosition = sDomePosition.getDomePosition();
+        sDomePosSettingsChanged = true;
+    }),
     WButton("Save", "save", []() {
         if (sDomePosSettingsChanged)
         {
@@ -100,6 +104,9 @@ WElement domeContents[] = {
     WCheckbox("Auto Safety Check", "autosafety",
         []() { return sSettings.fAutoSafety; },
         [](bool val) { sSettings.fAutoSafety = val; sDomeSettingsChanged = true; } ),
+    WSlider("Minimum Speed", "minspeed", 0, MAX_SPEED,
+        []()->int { return sSettings.fDomeSpeedMin; },
+        [](int val) { sSettings.fDomeSpeedMin = val; sDomeSettingsChanged = true; } ),
     WSlider("Maximum Speed", "maxspeed", 0, MAX_SPEED,
         []()->int { return sSettings.fMaxSpeed; },
         [](int val) { sSettings.fMaxSpeed = val; sDomeSettingsChanged = true; } ),
@@ -125,6 +132,7 @@ WElement domeContents[] = {
         sSettings.fDomeAutoMinDelay = DEFAULT_DOME_AUTO_MIN_DELAY;
         sSettings.fDomeAutoMaxDelay = DEFAULT_DOME_AUTO_MAX_DELAY;
         sSettings.fDomeSpeedAuto = DEFAULT_DOME_SPEED_AUTO;
+        sSettings.fDomeSpeedMin = DEFAULT_DOME_SPEED_MIN;
         sSettings.fInverted = DEFAULT_INVERTED;
         sSettings.fAutoSafety = DEFAULT_AUTO_SAFETY;
     }),
