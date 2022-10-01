@@ -19,7 +19,7 @@
     !defined(ROAM_A_DOME_COMPACT_PCB) && \
     !defined(LILYGO_MINI32) && \
     !defined(ROAM_A_DOME_DISPLAY)
-#error
+#error Make sure you select the correct PCB and remove this error
 //#define ROAM_A_DOME_FULLSIZE_PCB
 #define ROAM_A_DOME_COMPACT_PCB
 //#define LILYGO_MINI32
@@ -42,7 +42,9 @@
 #if defined(ROAM_A_DOME_FULLSIZE_PCB) || defined(ROAM_A_DOME_MEGA_PCB)
 #define USE_LCD_SCREEN                // Define if using LCD and Rotary encoder
 #endif
-#undef  USE_SERVOS                    // Define is enabling servo output on digital out pins
+#define USE_SERVOS                    // Define is enabling servo output on digital out pins
+// #define USE_SERVO_DEBUG
+// #define USE_VERBOSE_SERVO_DEBUG
 #define USE_DOME_DEBUG                // Define for dome drive mode debug
 #ifdef ESP32
 #define USE_VERBOSE_DOME_DEBUG        // Define for dome motor specific debug
@@ -160,6 +162,11 @@
 ///////////////////////////////////
 
 #include "pin-map.h"
+
+#if defined(USE_SERVOS) && !defined(PWM_OUTPUT_PIN)
+// Disable servo output if PWM_OUTPUT_PIN is not supported on PCB
+#undef USE_SERVOS
+#endif
 
 ///////////////////////////////////
 
@@ -528,15 +535,31 @@ static String sSerialBaudRatesStr[] = {
 //
 //   Pin  Group ID,      Min,  Max
 const ServoSettings sServoSettings[] PROGMEM = {
-    { PWM_OUTPUT_PIN,    1000, 2000, 0 },
-    { DOUT1_PIN,         1000, 2000, 0 },
-    { DOUT2_PIN,         1000, 2000, 0 },
-    { DOUT3_PIN,         1000, 2000, 0 },
-    { DOUT4_PIN,         1000, 2000, 0 },
-    { DOUT5_PIN,         1000, 2000, 0 },
-    { DOUT6_PIN,         1000, 2000, 0 },
-    { DOUT7_PIN,         1000, 2000, 0 },
-    { DOUT8_PIN,         1000, 2000, 0 }
+    { PWM_OUTPUT_PIN,    1000, 2000, 0 }
+#ifdef DOUT1_PIN
+    ,{ DOUT1_PIN,        1000, 2000, 0 }
+#endif
+#ifdef DOUT2_PIN
+    ,{ DOUT2_PIN,        1000, 2000, 0 }
+#endif
+#ifdef DOUT3_PIN
+    ,{ DOUT3_PIN,        1000, 2000, 0 }
+#endif
+#ifdef DOUT4_PIN
+    ,{ DOUT4_PIN,        1000, 2000, 0 }
+#endif
+#ifdef DOUT5_PIN
+    ,{ DOUT5_PIN,        1000, 2000, 0 }
+#endif
+#ifdef DOUT6_PIN
+    ,{ DOUT6_PIN,        1000, 2000, 0 }
+#endif
+#ifdef DOUT7_PIN
+    ,{ DOUT7_PIN,        1000, 2000, 0 }
+#endif
+#ifdef DOUT8_PIN
+    ,{ DOUT8_PIN,        1000, 2000, 0 }
+#endif
 };
 
 ServoDispatchDirect<SizeOfArray(sServoSettings)> sServoDispatch(sServoSettings);
@@ -640,6 +663,77 @@ SerialDomeController sDomeStick(Serial);
 #include "SoftwareSerial.h"
 #endif
 
+///////////////////////////////////////////////////////////////////////////////
+
+#ifdef USE_SERVOS
+class DomeDriveSabertoothPWM : public DomeDriveSabertooth
+{
+public:
+    DomeDriveSabertoothPWM(
+            int id,
+            Stream& serial,
+            ServoDispatch& dispatch,
+            uint8_t pwmNum,
+            JoystickController& domeStick) :
+        DomeDriveSabertooth(id, serial, domeStick),
+        fDispatch(dispatch),
+        fPWM(pwmNum)
+    {
+    }
+
+    inline void setOutput(bool pulseOutput, bool packetOutput)
+    {
+        if ((fPulseOutput && !pulseOutput) ||
+            (fPacketOutput && !packetOutput))
+        {
+            // Disabling either pulse or packet output. Motor might be
+            // moving so lets make sure it is stopped.
+            stop();
+        }
+        fPulseOutput = pulseOutput;
+        fPacketOutput = packetOutput;
+    }
+
+    virtual void stop() override
+    {
+        if (fPacketOutput)
+        {
+            DomeDriveSabertooth::stop();
+        }
+        if (fPulseOutput)
+        {
+            fDispatch.moveTo(fPWM, 0.5);
+        }
+    }
+
+protected:
+    ServoDispatch& fDispatch;
+    uint8_t fPWM;
+    bool fPacketOutput = false;
+    bool fPulseOutput = false;
+
+    static float map(float x, float in_min, float in_max, float out_min, float out_max)
+    {
+        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    }
+
+    virtual void motor(float m) override
+    {
+        if (fPacketOutput)
+        {
+            DomeDriveSabertooth::motor(m);
+        }
+        if (fPulseOutput)
+        {
+            fDispatch.moveTo(fPWM, map(m, -1.0f, 1.0f, 0.0f, 1.0f));
+        }
+    }
+};
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
+
 #ifdef USE_SIMULATOR
 class DomeDriveEmulator : public DomeDrive
 {
@@ -703,7 +797,11 @@ DomeDriveEmulator sDomeDrive(sDomeRing, sDomeStick);
  #ifdef DOME_DRIVE_SOFT_SERIAL
   SoftwareSerial DOME_DRIVE_SERIAL;
  #endif
- DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS_OUTPUT, DOME_DRIVE_SERIAL, sDomeStick);
+ #ifdef USE_SERVOS
+  DomeDriveSabertoothPWM sDomeDrive(SYREN_ADDRESS_OUTPUT, DOME_DRIVE_SERIAL, sServoDispatch, 0, sDomeStick);
+ #else
+  DomeDriveSabertooth sDomeDrive(SYREN_ADDRESS_OUTPUT, DOME_DRIVE_SERIAL, sDomeStick);
+ #endif
 #endif
 
 #ifdef COMMAND_SOFT_SERIAL
@@ -739,6 +837,7 @@ struct DomeControllerSettings
     bool fSpeedScaling = DEFAULT_SPEED_SCALING;
     bool fInverted = DEFAULT_INVERTED;
     bool fAutoSafety = DEFAULT_AUTO_SAFETY;
+    uint16_t fSetupAngularVelocity = SETUP_MAX_ANGULAR_VELOCITY;
     uint16_t fPWMMinPulse = DEFAULT_PWM_MIN_PULSE;
     uint16_t fPWMMaxPulse = DEFAULT_PWM_MAX_PULSE;
     uint16_t fPWMNeutralPulse = DEFAULT_PWM_NEUTRAL_PULSE;
@@ -891,10 +990,8 @@ static void restoreDomeSettings()
 #ifdef USE_SERVOS
     for (unsigned i = 0; i < SizeOfArray(sSettings.fServos); i++)
     {
-        unsigned pin = (i == 0) ? PWM_OUTPUT : DOUT1_PIN+i-1;
-        if (i > 0)
-            sServoDispatch.setServoEasingMethod(i, Easing::getEasingMethod(i));
-        sServoDispatch.setServo(i, pin, sSettings.fServos[i].fStartPulse,
+        sServoDispatch.setServoEasingMethod(i, Easing::getEasingMethod(sSettings.fServos[i].fEasing));
+        sServoDispatch.setServo(i, sServoDispatch.getPin(i), sSettings.fServos[i].fStartPulse,
             sSettings.fServos[i].fEndPulse, sSettings.fServos[i].fStartPulse, sSettings.fServos[i].fGroup);
     }
 #endif
@@ -913,6 +1010,10 @@ static void restoreDomeSettings()
     {
         // pulseInput.end();
     }
+#endif
+
+#ifdef PWM_OUTPUT_PIN
+    sDomeDrive.setOutput(sSettings.fPWMOutput, sSettings.fPacketSerialOutput);
 #endif
 }
 
@@ -1455,7 +1556,7 @@ bool processDomePositionCommand(const char* cmd)
         case 'Q':
         {
             uint16_t num = strtolu(cmd, &cmd);
-            if (num >= 0 && num <= 8)
+            if (num > 0 && num < SizeOfArray(sServoSettings))
             {
                 unsigned i = 0;
                 uint32_t val[4];
@@ -1469,15 +1570,15 @@ bool processDomePositionCommand(const char* cmd)
                     // :DPQ0,2000,0,30
                     case 4:
                         // moveTime, startPos, endPos, easing
-                        val[1] = min(val[1], 100);
-                        val[2] = min(val[1], 100);
+                        val[1] = min(val[1], 100u);
+                        val[2] = min(val[1], 100u);
                         sServoDispatch.setServoEasingMethod(num, Easing::getEasingMethod(val[3]));
                         sServoDispatch.moveTo(num, 0, val[0], float(val[1]) / 100, float(val[2]) / 100);
                         break;
 
                     case 3:
                         // moveTime, endPos, easing
-                        val[1] = min(val[1], 100);
+                        val[1] = min(val[1], 100u);
                         sServoDispatch.setServoEasingMethod(num, Easing::getEasingMethod(val[2]));
                         DEBUG_PRINTLN_HEX(uint32_t(Easing::getEasingMethod(val[2])));
                         sServoDispatch.moveTo(num, val[0], float(val[1]) / 100);
@@ -1485,13 +1586,13 @@ bool processDomePositionCommand(const char* cmd)
 
                     case 2:
                         // moveTime, endPos
-                        val[1] = min(val[1], 100);
+                        val[1] = min(val[1], 100u);
                         sServoDispatch.moveTo(num, val[0], float(val[1]) / 100);
                         break;
 
                     case 1:
                         // endPos
-                        val[0] = min(val[0], 100);
+                        val[0] = min(val[0], 100u);
                         DEBUG_PRINT(F("moveTo num:")); DEBUG_PRINT(num); DEBUG_PRINT(F(" pos: ")); DEBUG_PRINTLN(val[0]);
                         sServoDispatch.moveTo(num, float(val[0]) / 100);
                         break;
@@ -1779,12 +1880,41 @@ float calculateSpeed(unsigned speedPercentage)
     sDomePosition.setDomeMode(DomePosition::kTarget);
 
     sDomePosition.resetWatchdog();
+    bool checkDomeDirection = true;
+    unsigned sLastPositionReading = 0;
     while (sWaitTarget)
     {
         AnimatedEvent::process();
     #ifdef USE_MENUS
         sDisplay.process();
     #endif
+    #ifdef ESP32
+        vTaskDelay(1);
+    #endif
+        // Check if the motor is spinning in the opposite direction from what we expect
+        if (checkDomeDirection)
+        {
+            unsigned pos = sDomePosition.getDomePosition();
+            if (pos < 300)
+            {
+                if (!sLastPositionReading)
+                {
+                    sLastPositionReading = pos;
+                }
+                else if (sLastPositionReading < pos)
+                {
+                    // Previous reading is less than current reading - expected direction
+                    sSettings.fInverted = false;
+                    checkDomeDirection = false;
+                }
+                else if (sLastPositionReading > pos)
+                {
+                    // Previous reading greater than current reading - inverted direction
+                    sSettings.fInverted = true;
+                    checkDomeDirection = false;
+                }
+            }
+        }
         if (sDomePosition.isTimeout())
         {
             return 0;
@@ -1799,6 +1929,11 @@ float calculateSpeed(unsigned speedPercentage)
 
 bool setupDomeControl()
 {
+    if (!sDomePosition.ready())
+    {
+        DEBUG_PRINTLN(F("Setup Failed. Dome Sensor Not Ready."));
+        return false;
+    }
     // Manual command so allow dome to move
     sDomeHasMovedManually = true;
     // Loop starts with 50% and ends after 100%
@@ -1816,7 +1951,7 @@ bool setupDomeControl()
             return false;
         }
         Serial.print("Angular velocity: "); Serial.print(duration); Serial.println(" cm/s");
-        if (duration >= SETUP_MAX_ANGULAR_VELOCITY)
+        if (duration >= sSettings.fSetupAngularVelocity)
         {
             Serial.print("GOOD MAX SPEED: "); Serial.println(speed);
             break;
@@ -2014,6 +2149,7 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("AutoMaxDelay=")); Serial.println(sSettings.fDomeAutoMaxDelay);
         Serial.print(F("TargetMinDelay=")); Serial.println(sSettings.fDomeTargetMinDelay);
         Serial.print(F("TargetMaxDelay=")); Serial.println(sSettings.fDomeTargetMaxDelay);
+        Serial.print(F("SetupAngularVelocity=")); Serial.print(sSettings.fSetupAngularVelocity); Serial.println(F(" cm/s"));
         Serial.print(F("AutoLeft=")); Serial.println(sSettings.fDomeAutoLeft);
         Serial.print(F("AutoRight=")); Serial.println(sSettings.fDomeAutoRight);
         Serial.print(F("Fudge=")); Serial.println(sSettings.fDomeFudge);
@@ -2042,6 +2178,11 @@ void processConfigureCommand(const char* cmd)
             pins >>= 1;
         }
         Serial.println();
+    }
+    else if (startswith_P(cmd, F("#DPSETUPVELOCITY")) && isdigit(*cmd))
+    {
+        uint32_t velocity = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fSetupAngularVelocity, velocity);
     }
     else if (startswith_P(cmd, F("#DPSETUP")))
     {
@@ -2366,12 +2507,18 @@ void processConfigureCommand(const char* cmd)
                     {
                         // seconds
                         bool rand = false;
+                        bool millis = false;
                         int randlower = 1;
                         int seconds = 0;
                         cmd++;
                         if (*cmd == 'R')
                         {
                             rand = true;
+                            cmd++;
+                        }
+                        else if (*cmd == 'M')
+                        {
+                            millis = true;
                             cmd++;
                         }
                         seconds = strtolu(cmd, &cmd);
@@ -2392,7 +2539,14 @@ void processConfigureCommand(const char* cmd)
                                 randlower = t;
                             }
                         }
-                        Serial.print(F("Wait Seconds: "));
+                        if (millis)
+                        {
+                            Serial.print(F("Wait Millis: "));
+                        }
+                        else
+                        {
+                            Serial.print(F("Wait Seconds: "));
+                        }
                         if (rand)
                         {
                             Serial.print(F("Random "));

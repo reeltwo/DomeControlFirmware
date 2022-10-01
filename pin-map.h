@@ -7,7 +7,7 @@
 #ifdef __AVR_ATmega2560__
 // AVR Mega platform
 #define PWM_INPUT_PIN           2    // PWM Input Pin (Stealth or other PWM based dome control)
-#define PWM_OUTPUT_PIN          3    // PWM Output Pin (PWM Syren controller) - Not supported yet
+//#define PWM_OUTPUT_PIN          3    // PWM Output Pin (PWM Syren controller) - Not supported yet
 
 #define PIN_ENCODER_A           4    // Rotary encoder pin A
 #define PIN_ENCODER_B           5    // Rotary encoder pin B
