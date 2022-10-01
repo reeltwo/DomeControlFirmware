@@ -77,6 +77,12 @@ Factory reset all settings in EEPROM
 
     #DPZERO
 
+`#DPSETUPVELOCITY`[number]:
+Store the preferred maximum angular velocity for `#DPSETUP` command. Default value is 45 cm/s
+*Examples*:
+
+    #DPSETUPVELOCITY80 (set preferred maximum angular velocity to 80 cm/s)
+
 `#DPSETUP`:
 Inital setup. Will figure out minimum speed and if inversion is needed.
 *Examples*:
