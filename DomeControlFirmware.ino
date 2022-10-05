@@ -878,6 +878,8 @@ EEPROMSettings<DomeControllerSettings> sSettings;
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef PWM_INPUT_PIN
+#define PWM_MIN_PULSE 800
+#define PWM_MAX_PULSE 2200
 ServoDecoder pulseInput([](int pin, uint16_t pulse) {
     float drive = 0;
     long min_pulse = sSettings.fPWMMinPulse;
@@ -885,8 +887,12 @@ ServoDecoder pulseInput([](int pin, uint16_t pulse) {
     long max_pulse = sSettings.fPWMMaxPulse;
     uint8_t deadband = sSettings.fPWMDeadbandPercent;
     // printf("pulse: %d [%d:%d:%d]\n", pulse, int(min_pulse), int(max_pulse), int(neutral_pulse));
-    if (pulse > min_pulse && pulse < max_pulse)
+    if (pulse > PWM_MIN_PULSE && pulse < PWM_MAX_PULSE)
     {
+        if (pulse < min_pulse)
+            pulse = min_pulse;
+        else if (pulse > max_pulse)
+            pulse = max_pulse;
         if (pulse < neutral_pulse)
         {
             drive = -float(neutral_pulse - pulse) / (neutral_pulse - min_pulse);
@@ -988,20 +994,23 @@ static void restoreDomeSettings()
     else
         sDomePosition.setDomeDefaultMode(DomePosition::kOff);
 #ifdef USE_SERVOS
-    for (unsigned i = 0; i < SizeOfArray(sSettings.fServos); i++)
+    for (unsigned i = 1; i < SizeOfArray(sSettings.fServos); i++)
     {
         sServoDispatch.setServoEasingMethod(i, Easing::getEasingMethod(sSettings.fServos[i].fEasing));
         sServoDispatch.setServo(i, sServoDispatch.getPin(i), sSettings.fServos[i].fStartPulse,
             sSettings.fServos[i].fEndPulse, sSettings.fServos[i].fStartPulse, sSettings.fServos[i].fGroup);
     }
+    sServoDispatch.setServo(0, sServoDispatch.getPin(0), sSettings.fPWMMinPulse,
+        sSettings.fPWMMaxPulse, sSettings.fPWMNeutralPulse, 0);
 #endif
+
     uint8_t pins = sSettings.fDigitalPins;
     for (uint8_t i = 0; i < 8; i++)
     {
         setDigitalPin(i+1, pins & 1);
         pins >>= 1;
     }
-#ifdef ESP32
+#if defined(ESP32) && defined(PWM_INPUT_PIN)
     if (sSettings.fPWMInput)
     {
         pulseInput.begin();
@@ -1137,20 +1146,6 @@ void setup()
     {
         DEBUG_PRINTLN("Failed to mount filesystem");
     }
-    else
-    {
-        printf("SPIFFS MOUNTED\n");
-        FILE* f = fopen("/spiffs/splash.gif", "r");
-        if (f != nullptr)
-        {
-            printf("FOUND splash.gif\n");
-            fclose(f);
-        }
-        else
-        {
-            printf("NOT FOUND\n");
-        }
-    }
 #endif
 
 #ifdef USE_PREFERENCES
@@ -1161,7 +1156,9 @@ void setup()
 #ifdef USE_WIFI
     wifiEnabled = wifiActive = preferences.getBool(PREFERENCE_WIFI_ENABLED, WIFI_ENABLED);
 #endif
+#ifdef USE_DROID_REMOTE
     remoteEnabled = remoteActive = preferences.getBool(PREFERENCE_REMOTE_ENABLED, REMOTE_ENABLED);
+#endif
 #endif
 
     PrintReelTwoInfo(Serial, "Droid Dome Controller");
@@ -1188,7 +1185,6 @@ void setup()
     }
 #ifdef DOME_SENSOR_SERIAL
  #ifdef ESP32
-    printf("DOME_SENSOR_SERIAL.begin(rx=%d tx=%d) baudrate=%d\n", RXD1_PIN, TXD1_PIN, sSettings.fSensorBaudRate);
     DOME_SENSOR_SERIAL.setRxBufferSize(1024);
     DOME_SENSOR_SERIAL.begin(sSettings.fSensorBaudRate, SERIAL_8N1, RXD1_PIN, TXD1_PIN);
  #else
@@ -1200,26 +1196,19 @@ void setup()
     {
         // We only use hardware serial to read Syren commands
         DOME_DRIVE_SERIAL_READ.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, 0 /*not used*/);
-        printf("DOME_DRIVE_SERIAL_READ rxpin=%d\n", RXD2_PIN);
     }
 #endif
-    printf("Calling configureCommandSerial\n");
     configureCommandSerial();
-    printf("Calling configureDomeDrive\n");
     configureDomeDrive();
 
-    printf("Calling setBaudRate\n");
     sDomeDrive.setBaudRate(sSettings.fSaberBaudRate);
-    printf("Calling setAddress\n");
     sDomeDrive.setAddress(sSettings.fSaberAddressOutput);
 
-    printf("Calling SetupEvent::ready\n");
     SetupEvent::ready();
 
     // N.B.: Must call pinMode() before begin()
     for (unsigned i = 0; i < SizeOfArray(sDigitalPin); i++)
     {
-    printf("Calling pinMode(%d)\n", sDigitalPin[i]);
         sPinManager.pinMode(sDigitalPin[i], OUTPUT);
     }
     sPinManager.begin();
@@ -1251,6 +1240,7 @@ void setup()
 #endif
 
 #ifdef USE_PREFERENCES
+#ifdef USE_DROID_REMOTE
     if (remoteEnabled)
     {
     #ifdef USE_SMQ
@@ -1284,6 +1274,7 @@ void setup()
         }
     #endif
     }
+#endif
 #ifdef USE_WIFI
     if (wifiEnabled)
     {
@@ -1384,7 +1375,7 @@ void setup()
     });
 #endif
 
-#ifdef USE_WIFI
+#if defined(USE_WIFI) || defined(USE_DROID_REMOTE) || defined(USE_LVGL_DISPLAY)
     xTaskCreatePinnedToCore(
           eventLoopTask,
           "Events",
@@ -1970,7 +1961,9 @@ void reboot()
  #ifdef USE_DROID_REMOTE
     DisconnectRemote();
 #endif
+#ifdef PWM_INPUT_PIN
     pulseInput.end();
+#endif
     unmountFileSystems();
 #ifdef USE_PREFERENCES
     preferences.end();
@@ -2089,10 +2082,12 @@ void processConfigureCommand(const char* cmd)
         {
             Serial.println(F("Auto Safety Disengaged"));
         }
+    #ifdef PWM_INPUT_PIN
         if (pulseInput.isActive())
         {
             Serial.println(F("Pulse Input Active"));
         }
+    #endif
         if (sSerialMotorActivity)
         {
             Serial.println(F("Receiving Packet Serial"));
@@ -2295,10 +2290,18 @@ void processConfigureCommand(const char* cmd)
         }
         UPDATE_SETTING(sSettings.fHomePosition, sDomePosition.getDomeHome());
     }
-    else if (startswith_P(cmd, F("#DPHOME")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPHOME")))
     {
-        int mode = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fHomeMode, (mode != 0));
+        if (isdigit(*cmd))
+        {
+            int mode = strtolu(cmd, &cmd);
+            UPDATE_SETTING(sSettings.fHomeMode, (mode != 0));
+        }
+        else
+        {
+            // Toggle home mode
+            UPDATE_SETTING(sSettings.fHomeMode, !sSettings.fHomeMode);
+        }
     }
     else if (startswith_P(cmd, F("#DPSCALE")) && isdigit(*cmd))
     {
@@ -2315,10 +2318,18 @@ void processConfigureCommand(const char* cmd)
         int mode = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fAutoSafety, (mode != 0));
     }
-    else if (startswith_P(cmd, F("#DPAUTO")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPAUTO")))
     {
-        int mode = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fRandomMode, (mode != 0));
+        if (isdigit(*cmd))
+        {
+            int mode = strtolu(cmd, &cmd);
+            UPDATE_SETTING(sSettings.fRandomMode, (mode != 0));
+        }
+        else
+        {
+            // Toggle random mode
+            UPDATE_SETTING(sSettings.fRandomMode, !sSettings.fRandomMode);
+        }
     }
     else if (startswith_P(cmd, F("#DPASCALE")) && isdigit(*cmd))
     {
@@ -2339,6 +2350,21 @@ void processConfigureCommand(const char* cmd)
     {
         uint32_t mode = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fPWMOutput, (mode != 0));
+    }
+    else if (startswith_P(cmd, F("#DPPWMMIN")) && isdigit(*cmd))
+    {
+        uint32_t pulse = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fPWMMinPulse, pulse);
+    }
+    else if (startswith_P(cmd, F("#DPPWMMAX")) && isdigit(*cmd))
+    {
+        uint32_t pulse = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fPWMMaxPulse, pulse);
+    }
+    else if (startswith_P(cmd, F("#DPPWMNEUTRAL")) && isdigit(*cmd))
+    {
+        uint32_t pulse = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fPWMNeutralPulse, pulse);
     }
     else if (startswith_P(cmd, F("#DPSERIALOUT")) && isdigit(*cmd))
     {
@@ -3030,12 +3056,29 @@ void mainLoop()
 #endif
 }
 
-#ifdef USE_WIFI
+#if defined(USE_WIFI) || defined(USE_DROID_REMOTE) || defined(USE_LVGL_DISPLAY)
 void eventLoopTask(void* )
 {
     for (;;)
     {
-        mainLoop();
+        if (wifiActive)
+        {
+        #ifdef USE_OTA
+            ArduinoOTA.handle();
+        #endif
+        #ifdef USE_WIFI_WEB
+            webServer.handle();
+        #endif
+        }
+        if (remoteActive)
+        {
+        #ifdef USE_SMQ
+            SMQ::process();
+        #endif
+        }
+    #ifdef USE_LVGL_DISPLAY
+        statusDisplay.refresh();
+    #endif
         vTaskDelay(1);
     }
 }
@@ -3043,31 +3086,10 @@ void eventLoopTask(void* )
 
 void loop()
 {
-#ifdef USE_WIFI
-    if (wifiActive)
-    {
-    #ifdef USE_OTA
-        ArduinoOTA.handle();
-    #endif
-    #ifdef USE_WIFI_WEB
-        webServer.handle();
-    #endif
-    }
-    if (remoteActive)
-    {
-    #ifdef USE_SMQ
-        SMQ::process();
-    #endif
-    }
-#ifdef USE_LVGL_DISPLAY
-    statusDisplay.refresh();
-#endif
-#else
     mainLoop();
  #ifdef ESP32
     vTaskDelay(1);
  #endif
-#endif
 }
 
 #pragma GCC diagnostic pop
