@@ -146,8 +146,13 @@
 #define SYREN_ADDRESS_OUTPUT    129
 
 #define DOME_SENSOR_SERIAL          Serial1
+#if defined(__AVR_ATmega2560__)
 #define CONSOLE_BUFFER_SIZE     300
 #define COMMAND_BUFFER_SIZE     256
+#else
+#define CONSOLE_BUFFER_SIZE     1024
+#define COMMAND_BUFFER_SIZE     1024
+#endif
 
 #ifdef ESP32
 // Default dome sensor baud rate is 115200 for ESP32
@@ -912,7 +917,10 @@ ServoDecoder pulseInput([](int pin, uint16_t pulse) {
         }
         DEBUG_PRINT("PWM: "); DEBUG_PRINTLN(int(drive * 100));
         if (sSettings.fPWMInput)
+        {
+            abortSerialCommand();
             sDomeDrive.driveDome(drive);
+        }
     }
     else
     {
@@ -1466,9 +1474,6 @@ static const char* sOnOffStrings[] = {
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
-
-#define CONSOLE_BUFFER_SIZE                 300
-#define COMMAND_BUFFER_SIZE                 256
 
 static bool sNextCommand;
 static bool sProcessing;
@@ -2637,10 +2642,18 @@ void processConfigureCommand(const char* cmd)
                 Serial.print(F("]: "));
                 Serial.println(startcmd);
                 sCmdBuffer[0] = '\0';
-                if (sSettings.writeCommand(storeseq, startcmd))
+                if (strlen(startcmd) > sSettings.kMaximumCommandLength)
+                {
+                    Serial.println(F("Too long"));
+                }
+                else if (sSettings.writeCommand(storeseq, startcmd))
+                {
                     Serial.println(F("Stored"));
+                }
                 else
+                {
                     Serial.println(F("Failed"));
+                }
             }
         }
         else
@@ -3031,6 +3044,7 @@ void mainLoop()
             sDomeHasMovedManually = true; 
             restoreDomeSettings();
         }
+        abortSerialCommand();
         sDomeDrive.driveDome(sLastMotorValue);
     }
 #endif
