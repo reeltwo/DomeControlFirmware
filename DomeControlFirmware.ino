@@ -46,7 +46,7 @@
 // #define USE_SERVO_DEBUG
 // #define USE_VERBOSE_SERVO_DEBUG
 #define USE_DOME_DEBUG                // Define for dome drive mode debug
-#ifdef ESP32
+#if !defined(__AVR__)
 #define USE_VERBOSE_DOME_DEBUG        // Define for dome motor specific debug
 #endif
 #undef  USE_DOME_SENSOR_SERIAL_DEBUG  // Define for dome sensor ring specific debug
@@ -146,7 +146,7 @@
 #define SYREN_ADDRESS_OUTPUT    129
 
 #define DOME_SENSOR_SERIAL          Serial1
-#if defined(__AVR_ATmega2560__)
+#if defined(__AVR__)
 #define CONSOLE_BUFFER_SIZE     300
 #define COMMAND_BUFFER_SIZE     256
 #else
@@ -1998,7 +1998,7 @@ void processConfigureCommand(const char* cmd)
     {
         reboot();
     }
-#if defined(USE_VERBOSE_DOME_DEBUG) && defined(ESP32)
+#if defined(USE_VERBOSE_DOME_DEBUG) && !defined(__AVR__)
     else if (startswith_P(cmd, F("#DPDEBUG")) && isdigit(*cmd))
     {
         bool debugSetting = (strtolu(cmd, &cmd) == 1);
