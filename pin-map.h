@@ -44,8 +44,8 @@
 
 #elif defined(ROAM_A_DOME_DISPLAY)
 
-#define PWM_INPUT_PIN           2    // PWM Input Pin (Stealth or other PWM based dome control)
-#define PWM_OUTPUT_PIN          3    // PWM Output Pin (PWM Syren controller) - Not supported yet
+#define PWM_INPUT_PIN           3    // PWM Input Pin (Stealth or other PWM based dome control)
+#define PWM_OUTPUT_PIN          2    // PWM Output Pin (PWM Syren controller) - Not supported yet
 
 #define DOUT1_PIN               10   // Digital Output pin 1
 #define DOUT2_PIN               11   // Digital Output pin 2
@@ -55,10 +55,11 @@
 
 #define RXD1_PIN                1    // Dome Sensor Ring Input Pin
 #define TXD1_PIN                -1   // unused
-#define RXD2_PIN                16   // Syren input from droid controller (Shadow/Padawan)
-#define TXD2_PIN                17   // Syren output from Roam-a-dome
-#define RXD3_PIN                13   // Command Serial input (receive)
-#define TXD3_PIN                18   // Command Serial output (send)
+
+#define RXD2_PIN                17   // Syren input from droid controller (Shadow/Padawan)
+#define TXD2_PIN                16   // Syren output from Roam-a-dome
+#define RXD3_PIN                18   // Command Serial input (receive)
+#define TXD3_PIN                13   // Command Serial output (send)
 
 #define USE_LVGL_DISPLAY
 
