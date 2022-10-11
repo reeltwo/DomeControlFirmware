@@ -1900,13 +1900,12 @@ float calculateSpeed(unsigned speedPercentage)
                 else if (sLastPositionReading < pos)
                 {
                     // Previous reading is less than current reading - expected direction
-                    sSettings.fInverted = false;
                     checkDomeDirection = false;
                 }
                 else if (sLastPositionReading > pos)
                 {
                     // Previous reading greater than current reading - inverted direction
-                    sSettings.fInverted = true;
+                    sSettings.fInverted = !sSettings.fInverted;
                     checkDomeDirection = false;
                 }
             }
