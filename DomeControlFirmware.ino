@@ -6,6 +6,8 @@
 
 #if __has_include("build_version.h")
 #include "build_version.h"
+#else
+#define BUILD_VERSION "custom"
 #endif
 
 #if __has_include("reeltwo_build_version.h")
@@ -72,7 +74,7 @@
 ///////////////////////////////////
 
 #ifdef USE_DROID_REMOTE
-#define REMOTE_ENABLED                  false
+#define REMOTE_ENABLED                  true
 #define SMQ_HOSTNAME                    "RoamADome"
 #define SMQ_SECRET                      "Astromech"
 #endif
@@ -88,7 +90,7 @@
 #define MARC_WIFI_SERIAL_PASS           true
 #endif
 
-#define SETUP_MAX_ANGULAR_VELOCITY      45 /* cm/s */
+#define SETUP_MAX_ANGULAR_VELOCITY      100 /* cm/s */
 #define SETUP_VELOCITY_START            40
 #define SETUP_VELOCITY_INCREMENT        10
 #define DEFAULT_HOME_POSITION           0
@@ -1314,19 +1316,13 @@ void setup()
             Serial.print("Connect to http://"); Serial.println(wifi.getIPAddress());
         #ifdef USE_MDNS
             // No point in setting up mDNS if R2 is the access point
-            if (!wifi.isSoftAP())
+            if (!wifi.isSoftAP() && webServer.enabled())
             {
-                String mac = wifi.getMacAddress();
-                String hostName = mac.substring(mac.length()-5, mac.length());
-                hostName.remove(2, 1);
-                hostName = "RoamADome-"+hostName;
-                if (webServer.enabled())
+                String hostName = getHostName();
+                Serial.print("Host name: "); Serial.println(hostName);
+                if (!MDNS.begin(hostName.c_str()))
                 {
-                    Serial.print("Host name: "); Serial.println(hostName);
-                    if (!MDNS.begin(hostName.c_str()))
-                    {
-                        DEBUG_PRINTLN("Error setting up MDNS responder!");
-                    }
+                    DEBUG_PRINTLN("Error setting up MDNS responder!");
                 }
             }
         #endif
@@ -1841,12 +1837,11 @@ bool processDomePositionCommand(const char* cmd)
 
 static void updateSettings()
 {
-    printf("restoreDomeSettings\n");
+    Serial.println(F("Restore Dome Settings"));
     restoreDomeSettings();
-    printf("sSettings.write\n");
+    Serial.println(F("Write Settings"));
     sSettings.write();
     Serial.println(F("Updated"));
-    printf("Updated\n");
 #ifdef USE_WIFI_WEB
     sUpdateSettings = false;
 #endif
@@ -1993,6 +1988,14 @@ void processConfigureCommand(const char* cmd)
         *sSettings.data() = defaultSettings;
         updateSettings();
     }
+    else if (startswith_P(cmd, F("#DPFACTORY")))
+    {
+        DomeControllerSettings defaultSettings;
+        *sSettings.data() = defaultSettings;
+        updateSettings();
+        preferences.clear();
+        reboot();
+    }
     else if (startswith_P(cmd, F("#DPRESTART")))
     {
         reboot();
@@ -2016,9 +2019,22 @@ void processConfigureCommand(const char* cmd)
     }
 #endif
 #ifdef USE_WIFI
-    else if (startswith_P(cmd, F("#DPWIFI")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPWIFI")))
     {
-        bool wifiSetting = (strtolu(cmd, &cmd) == 1);
+        bool wifiSetting = wifiEnabled;
+        switch (*cmd)
+        {
+            case '0':
+                wifiSetting = false;
+                break;
+            case '1':
+                wifiSetting = true;
+                break;
+            case '\0':
+                // Toggle WiFi
+                wifiSetting = !wifiSetting;
+                break;
+        }
         if (wifiEnabled != wifiSetting)
         {
             if (wifiSetting)
