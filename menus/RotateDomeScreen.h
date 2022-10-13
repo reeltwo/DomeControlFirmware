@@ -19,6 +19,7 @@ public:
         sDomePosition.setDomeMode(DomePosition::kOff);
         sDomePosition.setDomeDefaultMode(DomePosition::kOff);
         sDomePosition.setDomeTargetPosition(sDomePosition.getDomePosition());
+        fSavedOldValue = false;
     }
 
     virtual void render() override
@@ -96,7 +97,12 @@ public:
     {
         if (sDomePosition.ready())
         {
-            long target = (long)fmod(newValue, 24) * 15;
+            if (!fSavedOldValue)
+            {
+                fOldValue = oldValue;
+                fSavedOldValue = true;
+            }
+            long target = (long)fmod(newValue-fOldValue, 24) * 15;
             if (target < 0)
                 target += 360;
             setDomeTarget(target);
@@ -113,6 +119,8 @@ protected:
     uint32_t fLastScreenUpdate = 0;
     int16_t fLastPos = -1;
     int16_t fLastDisplayPos = -1;
+    bool fSavedOldValue = false;
+    long fOldValue = 0;
 
     void setDomeTarget(long target)
     {
