@@ -308,9 +308,7 @@ WElement firmwareContents[] = {
     }),
     WHorizontalAlign(),
     WButton("Reboot", "reboot", []() {
-        DEBUG_PRINTLN("Rebooting");
-        preferences.end();
-        ESP.restart();
+        reboot();
     }),
     WHorizontalAlign(),
     WButton("Home", "home", "/"),
