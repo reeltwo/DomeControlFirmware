@@ -72,16 +72,22 @@ Configuration can happen through either the LCD display using the encoder wheel 
 ## Serial Configuration commands
 
 `#DPZERO`:
-Factory reset all settings in EEPROM
+Clear dome drive settings in flash/EEPROM.
 *Examples*:
 
     #DPZERO
 
-`#DPSETUPVELOCITY`[number]:
-Store the preferred maximum angular velocity for `#DPSETUP` command. Default value is 45 cm/s
+`#DPFACTORY`:
+Factory reset all settings (including WiFi)
 *Examples*:
 
-    #DPSETUPVELOCITY80 (set preferred maximum angular velocity to 80 cm/s)
+    #DPFACTORY
+
+`#DPSETUPVELOCITY`[number]:
+Store the preferred maximum angular velocity for `#DPSETUP` command. Default value is 100 cm/s
+*Examples*:
+
+    #DPSETUPVELOCITY80 (set preferred maximum angular velocity to 45 cm/s)
 
 `#DPSETUP`:
 Inital setup. Will figure out minimum speed and if inversion is needed.
@@ -95,6 +101,12 @@ Inital setup. Will figure out minimum speed and if inversion is needed.
 
     #DPDEBUG1 (enable debug output)
     #DPDEBUG0 (disable debug output)
+
+`#DPWIFI`:
+**ESP32** Toggle WiFi support.
+*Examples*:
+
+    #DPWIFI (toggle WiFi support)
 
 `#DPWIFI`[1|0]:
 **ESP32** Enables/disables WiFi support.
