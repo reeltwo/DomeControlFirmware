@@ -18,6 +18,39 @@ public:
         lv_timer_handler();
     }
 
+    void wake()
+    {
+        if (fSleeping)
+        {
+            // Turn on LCD and backlight
+            digitalWrite(PIN_POWER_ON, HIGH);
+            digitalWrite(PIN_LCD_BL, HIGH);
+            fSleeping = false;
+        }
+    }
+
+    void sleep()
+    {
+        if (!fSleeping)
+        {
+            // Turn off LCD and backlight
+            digitalWrite(PIN_POWER_ON, LOW);
+            digitalWrite(PIN_LCD_BL, LOW);
+            fSleeping = true;
+        }
+    }
+
+    void showStatus(const char* msg, void (*callback)() = nullptr)
+    {
+        printf("Show status: %s\n", msg);
+        lv_label_set_text(fCenterStatus, msg);
+        if (callback != nullptr)
+        {
+            fStatusTimeout = millis() + STATUS_SCREEN_DURATION;
+            fCallback = callback;
+        }
+    }
+
 protected:
     lv_obj_t*  fView = nullptr;
     lv_obj_t*  fTextPos = nullptr;
@@ -25,6 +58,13 @@ protected:
     uint32_t   fLastScreenUpdate = 0;
     int16_t    fLastPos = -1;
     int16_t    fLastDisplayPos = -1;
+    bool       fSleeping = false;
+    lv_obj_t*  fCenterStatus = nullptr;
+    lv_obj_t*  fTopLeftStatus = nullptr;
+    lv_obj_t*  fTopRightStatus = nullptr;
+    lv_obj_t*  fBottomRightStatus = nullptr;
+    void       (*fCallback)() = nullptr;
+    uint32_t   fStatusTimeout = 0;
 
     void updatePositionDisplay()
     {
@@ -42,8 +82,9 @@ protected:
                     setTextPosFont(font_large);
                     lv_label_set_text(fTextPos, buffer);
                     fLastDisplayPos = fLastPos;
+                    fLastScreenUpdate = millis();
+                    wake();
                 }
-                fLastScreenUpdate = millis();
             }
         }
         else
@@ -55,6 +96,22 @@ protected:
                 lv_label_set_text(fTextPos, "Position\nNot Available");
                 fLastDisplayPos = -2;
             }
+            fLastScreenUpdate = millis();
+        }
+        if (fStatusTimeout != 0)
+            fLastScreenUpdate = millis();
+        // No change in position put screen to sleep
+        if (!fSleeping && fLastScreenUpdate + SCREEN_SLEEP_TIMER < millis())
+        {
+            sleep();
+        }
+        lv_label_set_text(fTopRightStatus, wifiEnabled ? LV_SYMBOL_WIFI : "");
+        if (fStatusTimeout != 0 && fStatusTimeout < millis())
+        {
+            lv_label_set_text(fCenterStatus, "");
+            if (fCallback)
+                fCallback();
+            fStatusTimeout = 0;
         }
     }
 
@@ -88,6 +145,25 @@ protected:
             lv_obj_set_style_text_color(fTextPos, UI_FONT_COLOR, 0);
             lv_obj_set_style_text_font(fTextPos, font_large, 0);
         }
+        fBottomRightStatus = lv_label_create(lv_scr_act());
+        lv_obj_align(fBottomRightStatus, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+        lv_label_set_text(fBottomRightStatus, "");
+
+        fTopRightStatus = lv_label_create(lv_scr_act());
+        lv_obj_align(fTopRightStatus, LV_ALIGN_TOP_RIGHT, 0, 0);
+        lv_label_set_text(fTopRightStatus, "");
+
+        fTopLeftStatus = lv_label_create(lv_scr_act());
+        lv_obj_align(fTopLeftStatus, LV_ALIGN_TOP_LEFT, 0, 0);
+        lv_label_set_text(fTopLeftStatus, "");
+
+        fCenterStatus = lv_label_create(lv_scr_act());
+        lv_obj_align(fCenterStatus, LV_ALIGN_CENTER, 0, 0);
+        lv_label_set_text(fCenterStatus, "");
+        lv_obj_set_style_text_color(fCenterStatus, UI_BG_COLOR, 0);
+        lv_obj_set_style_bg_opa(fCenterStatus, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(fCenterStatus, UI_FONT_COLOR, 0);
+        lv_obj_set_style_text_font(fCenterStatus, font_medium, 0);
     }
 
     void setTextPosFont(const lv_font_t* font)
