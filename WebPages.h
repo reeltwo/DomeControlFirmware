@@ -104,6 +104,9 @@ WElement domeContents[] = {
     WCheckbox("Auto Safety Check", "autosafety",
         []() { return sSettings.fAutoSafety; },
         [](bool val) { sSettings.fAutoSafety = val; sDomeSettingsChanged = true; } ),
+    WCheckbox("Auto Movement Restart", "autorestart",
+        []() { return sSettings.fAutoRestart; },
+        [](bool val) { sSettings.fAutoRestart = val; sDomeSettingsChanged = true; } ),
     WSlider("Minimum Speed", "minspeed", 0, MAX_SPEED,
         []()->int { return sSettings.fDomeSpeedMin; },
         [](int val) { sSettings.fDomeSpeedMin = val; sDomeSettingsChanged = true; } ),
@@ -245,7 +248,6 @@ WElement wifiContents[] = {
     WPassword("Password:", "password",
         []()->String { return (wifiPass = preferences.getString(PREFERENCE_WIFI_PASS, WIFI_AP_PASSPHRASE)); },
         [](String val) { wifiPass = val; } ),
-    WLabel("WiFi Disables Droid Remote", "label2"),
     WHR(),
     WButton("Save", "save", []() {
         DEBUG_PRINTLN("WiFi Changed");
