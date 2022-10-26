@@ -506,11 +506,26 @@ void unmountFileSystems()
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "menus/CommandScreenDisplay.h"
-Adafruit_SSD1306 sLCD(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-CommandScreenDisplay<Adafruit_SSD1306> sDisplay(sLCD, sPinManager, []() {
+class DisplaySSD1306 : public Adafruit_SSD1306
+{
+public:
+    DisplaySSD1306() :
+        Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1)
+    {
+    }
+
+    void wakeDevice()
+    {
+    }
+
+    void sleepDevice()
+    {
+    }
+};
+DisplaySSD1306 sLCD;
+CommandScreenDisplay<DisplaySSD1306> sDisplay(sLCD, sPinManager, []() {
     return sLCD.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
 });
-
 #else
 
 #include "menus/CommandScreenHandlerSMQ.h"
@@ -1179,7 +1194,6 @@ bool lv_display_gif_until_complete(fs::File fd)
 
 #include "StatusDisplayLVGL.h"
 StatusDisplayLVGL sStatusDisplay;
-#endif
 
 void setupLVGLDisplay()
 {
@@ -1249,6 +1263,7 @@ void setupLVGLDisplay()
         }
     });
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1388,7 +1403,9 @@ void setup()
                 if (host == nullptr)
                 {
                     printf("Pairing timed out\n");
+                #ifdef USE_LVGL_DISPLAY
                     sStatusDisplay.showStatus("Timeout", []() {});
+                #endif
                 }
                 else //if (host->hasTopic("LCD"))
                 {
@@ -1396,7 +1413,9 @@ void setup()
                     {
                         case -1:
                             printf("Pairing Stopped\n");
+                        #ifdef USE_LVGL_DISPLAY
                             sStatusDisplay.showStatus("Stopped", []() {});
+                        #endif
                             SMQ::stopPairing();
                             return;
                         case 1:
@@ -1421,14 +1440,20 @@ void setup()
                             preferences.putBytes(PREFERENCE_REMOTE_PAIRED,
                                 pairedHosts, numHosts*sizeof(pairedHosts[0]));
                             printf("Pairing Success\n");
+                        #ifdef USE_LVGL_DISPLAY
                             sStatusDisplay.showStatus("Success", []() {});
+                        #endif
                             success = true;
                         }
                     }
                     printf("Pairing Stopped\n");
                     SMQ::stopPairing();
                     if (!success)
+                    {
+                    #ifdef USE_LVGL_DISPLAY
                         sStatusDisplay.showStatus("Stopped", []() {});
+                    #endif
+                    }
                 }
             });
 
@@ -2167,7 +2192,9 @@ void processConfigureCommand(const char* cmd)
         DomeControllerSettings defaultSettings;
         *sSettings.data() = defaultSettings;
         updateSettings();
+    #ifdef USE_PREFERENCES
         preferences.clear();
+    #endif
         reboot();
     }
     else if (startswith_P(cmd, F("#DPRESTART")))
