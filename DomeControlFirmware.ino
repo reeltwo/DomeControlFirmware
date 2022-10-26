@@ -1,3 +1,25 @@
+/*
+ * --------------------------------------------------------------------
+ * DomeControlFirmware (https://github.com/reeltwo/DomeControlFirmware)
+ * --------------------------------------------------------------------
+ * Written by Mimir Reynisson (skelmir)
+ * Many Thanks to Malcolm MacKenzie, Greg Hulette, Neil Hutchison
+ *
+ * DomeControlFirmware is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * DomeControlFirmware is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with DomeControlFirmware; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
@@ -107,6 +129,7 @@
 // If true no automatic movement will happen until the dome has been moved by joystick first.
 // If false automatic movement can happen on startup.
 #define DEFAULT_AUTO_SAFETY             true
+#define DEFAULT_AUTO_RESTART            false
 #define DEFAULT_INVERTED                false
 #define DEFAULT_PWM_MIN_PULSE           1000
 #define DEFAULT_PWM_MAX_PULSE           2000
@@ -230,6 +253,8 @@
 #define PREFERENCE_REMOTE_ENABLED           "remote"
 #define PREFERENCE_REMOTE_HOSTNAME          "rhost"
 #define PREFERENCE_REMOTE_SECRET            "rsecret"
+#define PREFERENCE_REMOTE_PAIRED            "rpaired"
+#define PREFERENCE_REMOTE_LMK               "rlmk"
 #define PREFERENCE_WIFI_ENABLED             "wifi"
 #define PREFERENCE_WIFI_SSID                "ssid"
 #define PREFERENCE_WIFI_PASS                "pass"
@@ -265,6 +290,11 @@
 #define SCREEN_WIDTH            320     // OLED display width, in pixels
 #define SCREEN_HEIGHT           170     // OLED display height, in pixels
 #define SCREEN_BUFFER_SIZE      (SCREEN_WIDTH * SCREEN_HEIGHT)
+#define SCREEN_SLEEP_TIMER      30*1000 // Turn off display if idle for 30 seconds
+
+#define LONGPRESS_DELAY         2000
+#define SPLASH_SCREEN_DURATION  2000
+#define STATUS_SCREEN_DURATION  1000
 
 #define LV_DELAY(x) {                                               \
   uint32_t start = millis();                                        \
@@ -285,11 +315,12 @@ PushButton button2(PIN_BUTTON_2, true);
 
 LV_FONT_DECLARE(lv_font_Astromech);
 LV_FONT_DECLARE(lv_font_montserrat_32);
-LV_IMG_DECLARE(r2d2_gif);
+LV_FONT_DECLARE(lv_font_montserrat_48);
 
 ////////////////////////////////
 
 static const lv_font_t* font_large = &lv_font_Astromech;
+static const lv_font_t* font_medium = &lv_font_montserrat_48;
 static const lv_font_t* font_normal = &lv_font_montserrat_32;
 
 #endif
@@ -844,6 +875,7 @@ struct DomeControllerSettings
     bool fSpeedScaling = DEFAULT_SPEED_SCALING;
     bool fInverted = DEFAULT_INVERTED;
     bool fAutoSafety = DEFAULT_AUTO_SAFETY;
+    bool fAutoRestart = DEFAULT_AUTO_RESTART;
     uint16_t fSetupAngularVelocity = SETUP_MAX_ANGULAR_VELOCITY;
     uint16_t fPWMMinPulse = DEFAULT_PWM_MIN_PULSE;
     uint16_t fPWMMaxPulse = DEFAULT_PWM_MAX_PULSE;
@@ -1098,6 +1130,57 @@ static void astro_lvgl_flush_cb(lv_disp_drv_t* disp, const lv_area_t* area, lv_c
 
 ////////////////////////////////
 
+bool lv_display_gif_until_complete(fs::File fd)
+{
+    if (!fd || fd.isDirectory())
+    {
+        DEBUG_PRINTLN("File not found");
+        return false;
+    }
+    size_t imageSize = fd.available();
+    char* imageData = (char*)ps_malloc(imageSize);
+    if (imageData != nullptr)
+    {
+        size_t readBytes = fd.readBytes(imageData, imageSize);
+        if (readBytes == imageSize)
+        {
+            static bool sSplashFinished;
+            lv_img_dsc_t splash_gif;
+            memset(&splash_gif, '\0', sizeof(splash_gif));
+            splash_gif.header.cf = LV_IMG_CF_RAW_CHROMA_KEYED,
+            splash_gif.data_size = imageSize;
+            splash_gif.data = (const uint8_t*)imageData;
+            lv_obj_t* splash_img = lv_gif_create(lv_scr_act());
+            lv_obj_center(splash_img);
+            lv_gif_set_src(splash_img, &splash_gif);
+            ((lv_gif_t*)splash_img)->gif->loop_count = 1;
+            lv_obj_add_event_cb(splash_img, [](lv_event_t* evt){
+                sSplashFinished = true;
+            }, LV_EVENT_READY, NULL);
+            // Spin until gif is finished
+            while (!sSplashFinished)
+            {
+                lv_timer_handler();
+                delay(1);
+            }
+            lv_obj_del(splash_img);
+            return true;
+        }
+        free(imageData);
+    }
+    else
+    {
+        DEBUG_PRINTLN("Failed to allocate space for image");
+    }
+    return false;
+}
+
+////////////////////////////////
+
+#include "StatusDisplayLVGL.h"
+StatusDisplayLVGL sStatusDisplay;
+#endif
+
 void setupLVGLDisplay()
 {
     pinMode(PIN_POWER_ON, OUTPUT);
@@ -1120,30 +1203,52 @@ void setupLVGLDisplay()
     disp_drv.draw_buf = &disp_buf;
     lv_disp_drv_register(&disp_drv);
 
-    // draw r2d2
-    lv_obj_t *logo_img = lv_gif_create(lv_scr_act());
-    lv_obj_center(logo_img);
-    lv_gif_set_src(logo_img, &r2d2_gif);
-    LV_DELAY(3440);
-    lv_obj_del(logo_img);
+    lv_display_gif_until_complete(SPIFFS.open("/splash.gif"));
 
+    button1.attachLongPressStart([]() {
+        sStatusDisplay.wake();
+    });
     button1.attachClick([]() {
-        printf("BUTTON 1\n");
-        // pinMode(PIN_POWER_ON, OUTPUT);
-        // pinMode(PIN_LCD_BL, OUTPUT);
-        // digitalWrite(PIN_POWER_ON, LOW);
-        // digitalWrite(PIN_LCD_BL, LOW);
-        // esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BUTTON_2, 0); // 1 = High, 0 = Low
-        // esp_deep_sleep_start();
+        sStatusDisplay.wake();
+        preferences.putBool(PREFERENCE_WIFI_ENABLED, !wifiEnabled);
+        sStatusDisplay.showStatus(
+            ((wifiEnabled) ? "WiFi Off" : "WiFi On"),
+            []() {
+                reboot();
+            }
+        );
     });
     button2.attachClick([]() {
-        printf("BUTTON 2\n");
+        sStatusDisplay.wake();
+        if (SMQ::isPairing())
+        {
+            DEBUG_PRINTLN("Pairing Stopped ...");
+            sStatusDisplay.showStatus("Stopped", []() {});
+            SMQ::stopPairing();
+        }
+        else
+        {
+            DEBUG_PRINTLN("Pairing Started ...");
+            SMQ::startPairing();
+            sStatusDisplay.showStatus("Pairing");
+        }
+    });
+    button2.setPressTicks(LONGPRESS_DELAY);
+    button2.attachLongPressStart([]() {
+        sStatusDisplay.wake();
+        if (preferences.remove(PREFERENCE_REMOTE_PAIRED))
+        {
+            DEBUG_PRINTLN("Unpairing Success...");
+            sStatusDisplay.showStatus("Unpaired", []() {
+                reboot();
+            });
+        }
+        else
+        {
+            DEBUG_PRINTLN("Not Paired...");
+        }
     });
 }
-
-#include "StatusDisplayLVGL.h"
-StatusDisplayLVGL statusDisplay;
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1258,9 +1363,75 @@ void setup()
         if (SMQ::init(preferences.getString(PREFERENCE_REMOTE_HOSTNAME, SMQ_HOSTNAME),
                         preferences.getString(PREFERENCE_REMOTE_SECRET, SMQ_SECRET)))
         {
+            SMQLMK key;
+            if (preferences.getBytes(PREFERENCE_REMOTE_LMK, &key, sizeof(SMQLMK)) == sizeof(SMQLMK))
+            {
+                SMQ::setLocalMasterKey(&key);
+            }
+
+            SMQAddressKey pairedHosts[SMQ_MAX_PAIRED_HOSTS];
+            size_t pairedHostsSize = preferences.getBytesLength(PREFERENCE_REMOTE_PAIRED);
+            unsigned numHosts = pairedHostsSize / sizeof(pairedHosts[0]);
+            printf("numHosts: %d\n", numHosts);
+            Serial.print("WiFi.macAddress() : "); Serial.println(WiFi.macAddress());
+            if (numHosts != 0)
+            {
+                if (preferences.getBytes(PREFERENCE_REMOTE_PAIRED, pairedHosts, pairedHostsSize) == pairedHostsSize)
+                {
+                    SMQ::addPairedHosts(numHosts, pairedHosts);
+                }
+            }
             printf("Droid Remote Enabled %s:%s\n",
                 preferences.getString(PREFERENCE_REMOTE_HOSTNAME, SMQ_HOSTNAME).c_str(),
                     preferences.getString(PREFERENCE_REMOTE_SECRET, SMQ_SECRET).c_str());
+            SMQ::setHostPairingCallback([](SMQHost* host) {
+                if (host == nullptr)
+                {
+                    printf("Pairing timed out\n");
+                    sStatusDisplay.showStatus("Timeout", []() {});
+                }
+                else //if (host->hasTopic("LCD"))
+                {
+                    switch (SMQ::masterKeyExchange(&host->fLMK))
+                    {
+                        case -1:
+                            printf("Pairing Stopped\n");
+                            sStatusDisplay.showStatus("Stopped", []() {});
+                            SMQ::stopPairing();
+                            return;
+                        case 1:
+                            // Save new master key
+                            SMQLMK lmk;
+                            SMQ::getLocalMasterKey(&lmk);
+                            printf("Saved new master key\n");
+                            preferences.putBytes(PREFERENCE_REMOTE_LMK, &lmk, sizeof(lmk));
+                            break;
+                        case 0:
+                            // We had the master key
+                            break;
+                    }
+                    bool success = false;
+                    printf("Pairing: %s [%s]\n", host->getHostName().c_str(), host->fLMK.toString().c_str());
+                    if (SMQ::addPairedHost(&host->fAddr, &host->fLMK))
+                    {
+                        SMQAddressKey pairedHosts[SMQ_MAX_PAIRED_HOSTS];
+                        unsigned numHosts = SMQ::getPairedHostCount();
+                        if (SMQ::getPairedHosts(pairedHosts, numHosts) == numHosts)
+                        {
+                            preferences.putBytes(PREFERENCE_REMOTE_PAIRED,
+                                pairedHosts, numHosts*sizeof(pairedHosts[0]));
+                            printf("Pairing Success\n");
+                            sStatusDisplay.showStatus("Success", []() {});
+                            success = true;
+                        }
+                    }
+                    printf("Pairing Stopped\n");
+                    SMQ::stopPairing();
+                    if (!success)
+                        sStatusDisplay.showStatus("Stopped", []() {});
+                }
+            });
+
             SMQ::setHostDiscoveryCallback([](SMQHost* host) {
                 if (host->hasTopic("LCD"))
                 {
@@ -1894,14 +2065,17 @@ float calculateSpeed(unsigned speedPercentage)
                 }
                 else if (sLastPositionReading < pos)
                 {
-                    // Previous reading is less than current reading - expected direction
+                    // Previous reading is less than current reading - inverted direction
+                    sSettings.fInverted = true;
                     checkDomeDirection = false;
+                    printf("INVERTED prev:%d current:%d\n", sLastPositionReading, pos);
                 }
                 else if (sLastPositionReading > pos)
                 {
-                    // Previous reading greater than current reading - inverted direction
-                    sSettings.fInverted = !sSettings.fInverted;
+                    // Previous reading greater than current reading - expected direction
+                    sSettings.fInverted = false;
                     checkDomeDirection = false;
+                    printf("EXPECTED prev:%d current:%d\n", sLastPositionReading, pos);
                 }
             }
         }
@@ -2090,6 +2264,23 @@ void processConfigureCommand(const char* cmd)
             reboot();
         }
     }
+    else if (startswith(cmd, "#DPPAIR"))
+    {
+        printf("Pairing Started ...\n");
+        SMQ::startPairing();
+    }
+    else if (startswith(cmd, "#DPUNPAIR"))
+    {
+        if (preferences.remove(PREFERENCE_REMOTE_PAIRED))
+        {
+            printf("Unpairing Success...\n");
+            reboot();
+        }
+        else
+        {
+            printf("Not Paired...\n");
+        }
+    }
 #endif
     else if (startswith_P(cmd, F("#DPSTATUS")))
     {
@@ -2156,6 +2347,7 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("Inverted=")); Serial.println(sSettings.fInverted);
         Serial.print(F("Timeout=")); Serial.println(sSettings.fTimeout);
         Serial.print(F("AutoSafety=")); Serial.println(sSettings.fAutoSafety);
+        Serial.print(F("AutoRestart=")); Serial.println(sSettings.fAutoRestart);
         Serial.print(F("AccelerationScale=")); Serial.println(sSettings.fAccScale);
         Serial.print(F("DecelerationScale=")); Serial.println(sSettings.fDecScale);
         Serial.print(F("HomeMinDelay=")); Serial.println(sSettings.fDomeHomeMinDelay);
@@ -2337,6 +2529,11 @@ void processConfigureCommand(const char* cmd)
     {
         int mode = strtolu(cmd, &cmd);
         UPDATE_SETTING(sSettings.fAutoSafety, (mode != 0));
+    }
+    else if (startswith_P(cmd, F("#DPAUTORESTART")) && isdigit(*cmd))
+    {
+        int mode = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fAutoRestart, (mode != 0));
     }
     else if (startswith_P(cmd, F("#DPAUTO")))
     {
@@ -2878,6 +3075,20 @@ void mainLoop()
         }
     }
 #endif
+    if (sDomeDrive.checkError())
+    {
+        Serial.println(F("ERROR: DOME POSITION TIMEOUT"));
+        if (sWaitTarget)
+        {
+            sWaitTarget = false;
+            abortSerialCommand();
+        }
+        if (sSettings.fAutoRestart && sSettings.fRandomMode)
+        {
+            Serial.println(F("Restarting auto movement"));
+            restoreDomeSettings();
+        }
+    }
     if (sProcessing && !sWaitTarget && millis() > sWaitNextSerialCommand)
     {
         if (sCmdBuffer[0] == ':')
@@ -3106,7 +3317,7 @@ void eventLoopTask(void* )
         #endif
         }
     #ifdef USE_LVGL_DISPLAY
-        statusDisplay.refresh();
+        sStatusDisplay.refresh();
     #endif
         vTaskDelay(1);
     }
