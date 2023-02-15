@@ -1,3 +1,4 @@
+//#define USE_SMQDEBUG
 /*
  * --------------------------------------------------------------------
  * DomeControlFirmware (https://github.com/reeltwo/DomeControlFirmware)
@@ -1823,6 +1824,11 @@ bool processDomePositionCommand(const char* cmd)
             float speed = sDomePosition.getDomeSpeedTarget();
             float minspeed = sDomePosition.getDomeMinSpeed();
             int32_t degrees;
+            if (*cmd == 'M')
+            {
+                sDomePosition.setDomeDefaultMode(DomePosition::kOff);
+                cmd++;
+            }
             if (*cmd == 'R' && (cmd[1] == ',' || cmd[1] == '\0'))
             {
                 degrees = random(360);
@@ -1832,6 +1838,7 @@ bool processDomePositionCommand(const char* cmd)
             {
                 degrees = strtol(cmd, &cmd);
             }
+            printf("cmd: %s\n", cmd);
             if (*cmd == ',')
             {
                 uint32_t speedpercentage;
@@ -1853,6 +1860,7 @@ bool processDomePositionCommand(const char* cmd)
             if (*cmd == '+')
             {
                 sWaitTarget = false;
+                cmd++;
             }
             sDomeDrive.autonomousDriveDome(0);
             if (*cmd == '\0')
@@ -2181,6 +2189,7 @@ void processConfigureCommand(const char* cmd)
 {
     bool needsUpdate = false;
     bool unchanged = false;
+    printf("PROCESS: \"%s\"\n", cmd);
     if (startswith_P(cmd, F("#DPZERO")))
     {
         DomeControllerSettings defaultSettings;
@@ -2572,6 +2581,7 @@ void processConfigureCommand(const char* cmd)
         else
         {
             // Toggle random mode
+            printf("TOGGLE RANDOM\n");
             UPDATE_SETTING(sSettings.fRandomMode, !sSettings.fRandomMode);
         }
     }
@@ -3093,12 +3103,41 @@ void mainLoop()
         }
         if (ch == 0x0A || ch == 0x0D)
         {
-            runSerialCommand();
+            // Ignore cr
+            if (ch == 0x0A)
+                runSerialCommand();
         }
         else if (sPos < SizeOfArray(sBuffer)-1)
         {
             sBuffer[sPos++] = ch;
             sBuffer[sPos] = '\0';
+        }
+    }
+    {
+        int pos = sDomePosition.getHomeRelativeDomePosition();
+        static int sLastPos = -1;
+        if (sLastPos != pos)
+        {
+            char mode = '@';
+            char buf[20];
+            switch (sDomePosition.getDomeMode())
+            {
+                case DomePosition::kOff:
+                    mode = '@';
+                    break;
+                case DomePosition::kHome:
+                    mode = '!';
+                    break;
+                case DomePosition::kRandom:
+                    mode = '$';
+                    break;
+                case DomePosition::kTarget:
+                    mode = '%';
+                    break;
+            }
+            snprintf(buf, sizeof(buf), "#DP%c%d", mode, pos);
+            COMMAND_SERIAL_WRITE.println(buf);
+            sLastPos = pos;
         }
     }
 #endif
