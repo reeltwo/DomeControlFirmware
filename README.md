@@ -1,5 +1,7 @@
 # Dome Controller Interface Board
 
+https://user-images.githubusercontent.com/16616950/219066315-4543ebc8-6e04-4268-8ffb-dd80255aa0bc.mp4
+
 This is the sketch for the Roam-A-Dome-Home (RDH) setup.
 
 ![Roam-a-dome-home](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/main/images/RDH-PCBs.jpg)
