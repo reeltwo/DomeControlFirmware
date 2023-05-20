@@ -26,7 +26,7 @@ public:
                 int16_t pos = sDomePosition.getHomeRelativeDomePosition();
                 if (sDomePosition.ready() && pos != fLastPos)
                     fLastPos = pos;
-                if (fLastPos != fLastDisplayPos)
+                if (fLastPos != fLastDisplayPos || sDisplay.needsRedisplay())
                 {
                     sDisplay.invertDisplay(false);
                     sDisplay.clearDisplay();
@@ -40,7 +40,7 @@ public:
         }
         else
         {
-            if (fLastDisplayPos != -2)
+            if (fLastDisplayPos != -2 || sDisplay.needsRedisplay())
             {
                 sDisplay.invertDisplay(true);
                 sDisplay.clearDisplay();

@@ -1,10 +1,17 @@
-//#define USE_SMQDEBUG
 /*
  * --------------------------------------------------------------------
  * DomeControlFirmware (https://github.com/reeltwo/DomeControlFirmware)
  * --------------------------------------------------------------------
  * Written by Mimir Reynisson (skelmir)
- * Many Thanks to Malcolm MacKenzie, Greg Hulette, Neil Hutchison
+ *
+ * Many Thanks to:
+ *   Malcolm MacKenzie
+ *   Greg Hulette
+ *   Neil Hutchison
+ *   Alec Muir
+ *   Tim Hebel
+ *   Stef
+ *   Philip Wise
  *
  * DomeControlFirmware is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -123,6 +130,7 @@
 #define DEFAULT_PACKET_SERIAL_OUTPUT    true
 #define DEFAULT_PWM_INPUT               false
 #define DEFAULT_PWM_OUTPUT              false
+#define DEFAULT_INPUT_SPEED             100
 #define DEFAULT_MAX_SPEED               50
 #define DEFAULT_RANDOM_MODE             false
 #define DEFAULT_HOME_MODE               false
@@ -130,7 +138,7 @@
 // If true no automatic movement will happen until the dome has been moved by joystick first.
 // If false automatic movement can happen on startup.
 #define DEFAULT_AUTO_SAFETY             true
-#define DEFAULT_AUTO_RESTART            false
+#define DEFAULT_AUTO_RESTART            true
 #define DEFAULT_INVERTED                false
 #define DEFAULT_PWM_MIN_PULSE           1000
 #define DEFAULT_PWM_MAX_PULSE           2000
@@ -885,6 +893,7 @@ struct DomeControllerSettings
     bool fPWMInput = DEFAULT_PWM_INPUT;
     bool fPWMOutput = DEFAULT_PWM_OUTPUT;
     uint8_t fMaxSpeed = DEFAULT_MAX_SPEED;
+    uint8_t fInputSpeed = DEFAULT_INPUT_SPEED;
     uint8_t fTimeout = DEFAULT_TIMEOUT;
     bool fRandomMode = DEFAULT_RANDOM_MODE;
     bool fHomeMode = DEFAULT_HOME_MODE;
@@ -2379,6 +2388,7 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("MinSpeed=")); Serial.println(sSettings.fDomeSpeedMin);
         Serial.print(F("AutoMode=")); Serial.println(sSettings.fRandomMode);
         Serial.print(F("HomeMode=")); Serial.println(sSettings.fHomeMode);
+        Serial.print(F("InputSpeed=")); Serial.println(sSettings.fInputSpeed);
         Serial.print(F("Scaling=")); Serial.println(sSettings.fSpeedScaling);
         Serial.print(F("Inverted=")); Serial.println(sSettings.fInverted);
         Serial.print(F("Timeout=")); Serial.println(sSettings.fTimeout);
@@ -2448,6 +2458,11 @@ void processConfigureCommand(const char* cmd)
         Serial.println(seq);
         if (sSettings.deleteCommand(seq))
             Serial.println(F("Deleted"));
+    }
+    else if (startswith_P(cmd, F("#DPINPUTSPEED")) && isdigit(*cmd))
+    {
+        int speed = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fInputSpeed, min(speed, MAX_SPEED));
     }
     else if (startswith_P(cmd, F("#DPMAXSPEED")) && isdigit(*cmd))
     {
@@ -3103,9 +3118,7 @@ void mainLoop()
         }
         if (ch == 0x0A || ch == 0x0D)
         {
-            // Ignore cr
-            if (ch == 0x0A)
-                runSerialCommand();
+            runSerialCommand();
         }
         else if (sPos < SizeOfArray(sBuffer)-1)
         {
@@ -3229,18 +3242,18 @@ void mainLoop()
                 byte value = sReadBuffer[2];
                 byte crc = sReadBuffer[3];
                 byte calcCRC = ((unsigned(address) + command + value) & B01111111);
-            #ifdef ESP32
-                // printf("SYREN{%d}:%d:%d:%d [%d]\n", address, command, value, crc, calcCRC);
-            #endif
                 if (address == sSettings.fSaberAddressInput && crc == calcCRC)
                 {
-                    // DEBUG_PRINT(address);
+                    //printf("SYREN{%d}:%d:%d:%d [%d]\n", address, command, value, crc, calcCRC);
+                    //DEBUG_PRINT(address);
                     switch (command)
                     {
                         case 0: /* motor #1 */
                         case 1: /* motor #1 - negative */
                         {
                             float mval = float(value) / 127.0;
+                            if (sSettings.fInputSpeed < MAX_SPEED)
+                                mval *= float(sSettings.fMaxSpeed) / MAX_SPEED;
                             if (command == 1)
                                 mval = -mval;
                             sLastMotorValue = mval;
@@ -3296,13 +3309,13 @@ void mainLoop()
                 {
                     if (command != 0 || value != 0 || crc != 0 || calcCRC != 0)
                     {
-                        DEBUG_PRINT(F("{BAD}"));
-                        DEBUG_PRINT('['); DEBUG_PRINT(address); DEBUG_PRINT(F("] "));
-                        DEBUG_PRINT(command); DEBUG_PRINT(':');
-                        DEBUG_PRINT(value); DEBUG_PRINT(F(":CRC:"));
-                        DEBUG_PRINT_HEX(crc); DEBUG_PRINT(F(":EXPECTED:"));
-                        DEBUG_PRINT_HEX(calcCRC);
-                        DEBUG_PRINTLN();
+                        // DEBUG_PRINT(F("{BAD}"));
+                        // DEBUG_PRINT('['); DEBUG_PRINT(address); DEBUG_PRINT(F("] "));
+                        // DEBUG_PRINT(command); DEBUG_PRINT(':');
+                        // DEBUG_PRINT(value); DEBUG_PRINT(F(":CRC:"));
+                        // DEBUG_PRINT_HEX(crc); DEBUG_PRINT(F(":EXPECTED:"));
+                        // DEBUG_PRINT_HEX(calcCRC);
+                        // DEBUG_PRINTLN();
                         sPacketSerialErrors++;
                     }
                     sReadBuffer[0] = sReadBuffer[1];

@@ -1,6 +1,6 @@
 #TARGET?=Mega2560
-TARGET?=ESP32
-#TARGET=ESP32S3
+#TARGET?=ESP32
+TARGET?=ESP32S3
 ifeq ("$(TARGET)", "ESP32S3")
 PORT?=/dev/ttyACM0
 ESP32_DATA=data32
@@ -9,16 +9,17 @@ ESP32_FLASHSIZE=16MB
 ESP32S3_CDCONBOOT=cdc
 ESP32_PARTFILE=partitions_ESP32S3.csv
 ESP32_PARTSCHEME=min_spiffs
+
+GITHUB_REPOS= \
+reeltwo/Reeltwo \
+rimim/lvgl \
+rimim/TFT_eSPI \
+rimim/espsoftwareserial
 else
 PORT?=/dev/ttyUSB0
 ESP32_FLASHSIZE=16M
 ESP32_PARTSCHEME=min_spiffs
-endif
 
-ESP32_FILESYSTEM=spiffs
-ESP32_FILESYSTEM_PART=spiffs
-
-#ESP32_DEBUGLEVEL=verbose
 GITHUB_REPOS= \
 reeltwo/Reeltwo \
 adafruit/Adafruit_NeoPixel \
@@ -27,6 +28,12 @@ adafruit/Adafruit_SSD1306 \
 adafruit/Adafruit_BusIO \
 rimim/espsoftwareserial \
 reeltwo/PCF8574
+endif
+
+ESP32_FILESYSTEM=spiffs
+ESP32_FILESYSTEM_PART=spiffs
+
+#ESP32_DEBUGLEVEL=verbose
 
 ifeq ("$(TARGET)", "ESP32S3")
 ARDUINO_OPTS+='-prefs="compiler.cpp.extra_flags=-DROAM_A_DOME_DISPLAY=1"'
