@@ -20,7 +20,7 @@ static const char* sSettingsMenu[] = {
     "Set Home\nMax Delay",
     "Set Auto\nSafety",
     "Set Serial\nBaud Rate",
-    "Saber Baud\nRate",
+    "Syren Baud\nRate",
     "Set Packet\nSerial In",
     "Set Packet\nSerial Out",
     "Set PWM\nInput",

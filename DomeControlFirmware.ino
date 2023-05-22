@@ -86,7 +86,9 @@
 #ifdef ESP32
 #define USE_DROID_REMOTE              // Define for droid remote support
 #define USE_WIFI
+#ifdef USE_LVGL_DISPLAY
 #define USE_SPIFFS
+#endif
 #define USE_PREFERENCES
 #endif
 
@@ -124,7 +126,7 @@
 #define SETUP_VELOCITY_START            40
 #define SETUP_VELOCITY_INCREMENT        10
 #define DEFAULT_HOME_POSITION           0
-#define DEFAULT_SABER_BAUD              9600
+#define DEFAULT_SYREN_BAUD              9600
 #define DEFAULT_SERIAL_BAUD             9600
 #define DEFAULT_PACKET_SERIAL_INPUT     true
 #define DEFAULT_PACKET_SERIAL_OUTPUT    true
@@ -882,11 +884,11 @@ struct Channel
 
 struct DomeControllerSettings
 {
-    uint8_t fSaberAddressInput = SYREN_ADDRESS_INPUT;
-    uint8_t fSaberAddressOutput = SYREN_ADDRESS_OUTPUT;
+    uint8_t fSyrenAddressInput = SYREN_ADDRESS_INPUT;
+    uint8_t fSyrenAddressOutput = SYREN_ADDRESS_OUTPUT;
     uint16_t fHomePosition = DEFAULT_HOME_POSITION;
     uint32_t fSensorBaudRate = DOME_SENSOR_SERIAL_BAUD;
-    uint32_t fSaberBaudRate = DEFAULT_SABER_BAUD;
+    uint32_t fSyrenBaudRate = DEFAULT_SYREN_BAUD;
     uint32_t fSerialBaudRate = DEFAULT_SERIAL_BAUD;
     bool fPacketSerialInput = DEFAULT_PACKET_SERIAL_INPUT;
     bool fPacketSerialOutput = DEFAULT_PACKET_SERIAL_OUTPUT;
@@ -1113,12 +1115,12 @@ void configureDomeDrive()
 {
 #ifdef DOME_DRIVE_SOFT_SERIAL
     // We only use software serial to send Syren commands
-    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SWSERIAL_8N1, -1, TXD2_PIN, false);
+    DOME_DRIVE_SERIAL.begin(sSettings.fSyrenBaudRate, SWSERIAL_8N1, -1, TXD2_PIN, false);
 #elif defined(DOME_DRIVE_SERIAL)
  #ifdef ESP32
-    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, TXD2_PIN);
+    DOME_DRIVE_SERIAL.begin(sSettings.fSyrenBaudRate, SERIAL_8N1, RXD2_PIN, TXD2_PIN);
  #else
-    DOME_DRIVE_SERIAL.begin(sSettings.fSaberBaudRate);
+    DOME_DRIVE_SERIAL.begin(sSettings.fSyrenBaudRate);
  #endif
 #endif
 }
@@ -1335,14 +1337,14 @@ void setup()
     if ((void*)&DOME_DRIVE_SERIAL_READ != (void*)&DOME_DRIVE_SERIAL_WRITE)
     {
         // We only use hardware serial to read Syren commands
-        DOME_DRIVE_SERIAL_READ.begin(sSettings.fSaberBaudRate, SERIAL_8N1, RXD2_PIN, 0 /*not used*/);
+        DOME_DRIVE_SERIAL_READ.begin(sSettings.fSyrenBaudRate, SERIAL_8N1, RXD2_PIN, 0 /*not used*/);
     }
 #endif
     configureCommandSerial();
     configureDomeDrive();
 
-    sDomeDrive.setBaudRate(sSettings.fSaberBaudRate);
-    sDomeDrive.setAddress(sSettings.fSaberAddressOutput);
+    sDomeDrive.setBaudRate(sSettings.fSyrenBaudRate);
+    sDomeDrive.setAddress(sSettings.fSyrenAddressOutput);
 
     SetupEvent::ready();
 
@@ -2409,10 +2411,10 @@ void processConfigureCommand(const char* cmd)
         Serial.print(F("SpeedHome=")); Serial.println(sSettings.fDomeSpeedHome);
         Serial.print(F("SpeedAuto=")); Serial.println(sSettings.fDomeSpeedAuto);
         Serial.print(F("SpeedTarget=")); Serial.println(sSettings.fDomeSpeedTarget);
-        Serial.print(F("SaberAddressIn=")); Serial.println(sSettings.fSaberAddressInput);
-        Serial.print(F("SaberAddressOut=")); Serial.println(sSettings.fSaberAddressOutput);
+        Serial.print(F("SyrenAddressIn=")); Serial.println(sSettings.fSyrenAddressInput);
+        Serial.print(F("SyrenAddressOut=")); Serial.println(sSettings.fSyrenAddressOutput);
         Serial.print(F("SensorBaud=")); Serial.println(sSettings.fSensorBaudRate);
-        Serial.print(F("SaberBaud=")); Serial.println(sSettings.fSaberBaudRate);
+        Serial.print(F("SyrenBaud=")); Serial.println(sSettings.fSyrenBaudRate);
         Serial.print(F("SerialBaud=")); Serial.println(sSettings.fSerialBaudRate);
         Serial.print(F("SerialIn=")); Serial.println(sSettings.fPacketSerialInput);
         Serial.print(F("SerialOut=")); Serial.println(sSettings.fPacketSerialOutput);
@@ -2664,27 +2666,33 @@ void processConfigureCommand(const char* cmd)
             }
         }
     }
-    else if (startswith_P(cmd, F("#DPSABERBAUD")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSYRENBAUD")) && isdigit(*cmd))
     {
         uint32_t baudrate = strtolu(cmd, &cmd);
         for (unsigned i = 0; i < SizeOfArray(sBaudRates); i++)
         {
             if (baudrate == sBaudRates[i])
             {
-                UPDATE_SETTING(sSettings.fSaberBaudRate, baudrate);
+                UPDATE_SETTING(sSettings.fSyrenBaudRate, baudrate);
                 break;
             }
         }
     }
-    else if (startswith_P(cmd, F("#DPSABERADDRIN")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSYRENADDRIN")) && isdigit(*cmd))
     {
         uint32_t addrIn = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fSaberAddressInput, addrIn);
+        UPDATE_SETTING(sSettings.fSyrenAddressInput, addrIn);
     }
-    else if (startswith_P(cmd, F("#DPSABERADDROUT")) && isdigit(*cmd))
+    else if (startswith_P(cmd, F("#DPSYRENADDROUT")) && isdigit(*cmd))
     {
         uint32_t addrOut = strtolu(cmd, &cmd);
-        UPDATE_SETTING(sSettings.fSaberAddressOutput, addrOut);
+        UPDATE_SETTING(sSettings.fSyrenAddressOutput, addrOut);
+    }
+    else if (startswith_P(cmd, F("#DPSYRENADDR")) && isdigit(*cmd))
+    {
+        uint32_t addr = strtolu(cmd, &cmd);
+        UPDATE_SETTING(sSettings.fSyrenAddressInput, addr);
+        UPDATE_SETTING(sSettings.fSyrenAddressOutput, addr);
     }
     else if (startswith_P(cmd, F("#DPPIN")) && cmd[0] >= '1' && cmd[0] <= '8' && (cmd[1] == '0' || cmd[1] == '1'))
     {
@@ -3242,7 +3250,7 @@ void mainLoop()
                 byte value = sReadBuffer[2];
                 byte crc = sReadBuffer[3];
                 byte calcCRC = ((unsigned(address) + command + value) & B01111111);
-                if (address == sSettings.fSaberAddressInput && crc == calcCRC)
+                if (address == sSettings.fSyrenAddressInput && crc == calcCRC)
                 {
                     //printf("SYREN{%d}:%d:%d:%d [%d]\n", address, command, value, crc, calcCRC);
                     //DEBUG_PRINT(address);

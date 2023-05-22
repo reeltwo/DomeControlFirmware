@@ -15,17 +15,17 @@ public:
 protected:
     virtual unsigned getValue() override
     {
-        return sSettings.fSaberBaudRate;
+        return sSettings.fSyrenBaudRate;
     }
 
     virtual void setValue(unsigned newValue) override
     {
-        sSettings.fSaberBaudRate = newValue;
+        sSettings.fSyrenBaudRate = newValue;
     }
 
     virtual void saveValue(unsigned newValue)
     {
-        sSettings.fSaberBaudRate = newValue;
+        sSettings.fSyrenBaudRate = newValue;
         sSettings.write();
     }
 };

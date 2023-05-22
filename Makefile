@@ -10,25 +10,26 @@ ESP32S3_CDCONBOOT=cdc
 ESP32_PARTFILE=partitions_ESP32S3.csv
 ESP32_PARTSCHEME=min_spiffs
 
+else
+PORT?=/dev/ttyUSB0
+ESP32_FLASHSIZE=16MB
+ESP32_PARTSCHEME=min_spiffs
+endif
+
 GITHUB_REPOS= \
 reeltwo/Reeltwo \
 rimim/lvgl \
 rimim/TFT_eSPI \
-rimim/espsoftwareserial
-else
-PORT?=/dev/ttyUSB0
-ESP32_FLASHSIZE=16M
-ESP32_PARTSCHEME=min_spiffs
+rimim/espsoftwareserial \
 
-GITHUB_REPOS= \
-reeltwo/Reeltwo \
+# Used by compact PC
+BqGITHUB_REPOS+= \
 adafruit/Adafruit_NeoPixel \
 adafruit/Adafruit-GFX-Library \
 adafruit/Adafruit_SSD1306 \
 adafruit/Adafruit_BusIO \
 rimim/espsoftwareserial \
 reeltwo/PCF8574
-endif
 
 ESP32_FILESYSTEM=spiffs
 ESP32_FILESYSTEM_PART=spiffs

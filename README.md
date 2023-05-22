@@ -13,6 +13,12 @@ This is the sketch for the Roam-A-Dome-Home (RDH) setup.
 <li>https://github.com/rimim/lvgl</li>
 <li>https://github.com/rimim/TFT_eSPI</li>
 <li>https://github.com/rimim/espsoftwareserial</li>
+<li>https://github.com/adafruit/Adafruit_NeoPixel</li>
+<li>https://github.com/adafruit/Adafruit-GFX-Library</li>
+<li>https://github.com/adafruit/Adafruit_SSD1306</li>
+<li>https://github.com/adafruit/Adafruit_BusIO</li>
+<li>https://github.com/rimim/espsoftwareserial</li>
+<li>https://github.com/reeltwo/PCF8574</li>
 </ul>
 
 ## Build using Arduino IDE
@@ -341,23 +347,29 @@ Specify command serial baud rate 2400,9600,19200,384000 (default 9600)
 
     #DPSERIALBAUD9600 (set command Serial baud rate to 9600)
 
-`#DPSABERBAUD`[number]:
+`#DPSYRENBAUD`[number]:
 Specify command Syren/Sabertooth packet serial baud rate 2400,9600,19200,384000 (default 9600)
 *Examples*:
 
-    #DPSABERBAUD9600 (set Syren/Sabertooth baud rate to 9600)
+    #DPSYRENBAUD9600 (set Syren/Sabertooth baud rate to 9600)
 
-`#DPSABERADDRIN`[number]:
+`#DPSYRENADDRIN`[number]:
 Specify command Syren/Sabertooth packet serial input address (default 129)
 *Examples*:
 
-    #DPSABERADDRIN129 (set Syren/Sabertooth input address to 129)
+    #DPSYRENADDRIN129 (set Syren/Sabertooth input address to 129)
 
-`#DPSABERADDROUT`[number]:
+`#DPSYRENADDROUT`[number]:
 Specify command Syren/Sabertooth packet serial output address (default 129)
 *Examples*:
 
-    #DPSABERADDROUT129 (set Syren/Sabertooth output address to 129)
+    #DPSYRENADDROUT129 (set Syren/Sabertooth output address to 129)
+
+`#DPSYRENADDR`[number]:
+Specify command Syren/Sabertooth packet serial input and output address (default 129)
+*Examples*:
+
+    #DPSYRENADDR129 (set Syren/Sabertooth input and output address to 129)
 
 `#DPSENSORBAUD`[number]:
 Specify command serial baud rate 57600 or 115200 (default 115200)
