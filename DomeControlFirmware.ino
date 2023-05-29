@@ -789,6 +789,7 @@ protected:
         }
         if (fPulseOutput)
         {
+            // printf("PWMOUT: %d\n", int(map(m, -1.0f, 1.0f, 0.0f, 1.0f) * 100));
             fDispatch.moveTo(fPWM, map(m, -1.0f, 1.0f, 0.0f, 1.0f));
         }
     }
@@ -952,7 +953,6 @@ ServoDecoder pulseInput([](int pin, uint16_t pulse) {
     long neutral_pulse = sSettings.fPWMNeutralPulse;
     long max_pulse = sSettings.fPWMMaxPulse;
     uint8_t deadband = sSettings.fPWMDeadbandPercent;
-    // printf("pulse: %d [%d:%d:%d]\n", pulse, int(min_pulse), int(max_pulse), int(neutral_pulse));
     if (pulse > PWM_MIN_PULSE && pulse < PWM_MAX_PULSE)
     {
         if (pulse < min_pulse)
@@ -976,7 +976,8 @@ ServoDecoder pulseInput([](int pin, uint16_t pulse) {
             sDomeHasMovedManually = true;
             restoreDomeSettings();
         }
-        DEBUG_PRINT("PWM: "); DEBUG_PRINTLN(int(drive * 100));
+        if (sVerboseDomeDebug)
+            printf("PWM: %d (pulse: %d [%d:%d:%d])\n", int(drive * 100), pulse, int(min_pulse), int(max_pulse), int(neutral_pulse));
         if (sSettings.fPWMInput)
         {
             abortSerialCommand();

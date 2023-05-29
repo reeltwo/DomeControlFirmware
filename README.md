@@ -17,7 +17,6 @@ This is the sketch for the Roam-A-Dome-Home (RDH) setup.
 <li>https://github.com/adafruit/Adafruit-GFX-Library</li>
 <li>https://github.com/adafruit/Adafruit_SSD1306</li>
 <li>https://github.com/adafruit/Adafruit_BusIO</li>
-<li>https://github.com/rimim/espsoftwareserial</li>
 <li>https://github.com/reeltwo/PCF8574</li>
 </ul>
 

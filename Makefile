@@ -23,12 +23,11 @@ rimim/TFT_eSPI \
 rimim/espsoftwareserial \
 
 # Used by compact PC
-BqGITHUB_REPOS+= \
+GITHUB_REPOS+= \
 adafruit/Adafruit_NeoPixel \
 adafruit/Adafruit-GFX-Library \
 adafruit/Adafruit_SSD1306 \
 adafruit/Adafruit_BusIO \
-rimim/espsoftwareserial \
 reeltwo/PCF8574
 
 ESP32_FILESYSTEM=spiffs
