@@ -199,3 +199,7 @@
 #define COMMAND_SERIAL_READ     commandSerial
 #define COMMAND_SERIAL_WRITE    commandSerial  // Use HardwareSerial2 for Serial commands
 #endif
+
+#ifndef DOME_SENSOR_SERIAL
+#define DOME_SENSOR_SERIAL      Serial1
+#endif

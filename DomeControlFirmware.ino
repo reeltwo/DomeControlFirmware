@@ -86,7 +86,7 @@
 #ifdef ESP32
 #define USE_DROID_REMOTE              // Define for droid remote support
 #define USE_WIFI
-#ifdef USE_LVGL_DISPLAY
+#if defined(ROAM_A_DOME_DISPLAY)
 #define USE_SPIFFS
 #endif
 #define USE_PREFERENCES

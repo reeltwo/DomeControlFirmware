@@ -1,0 +1,1 @@
+RAD-Base-Wide-Thicker.stl: Is slightly modified from the Fusion model. I needed to raise the floor of the RAD-Base to bring the PCB closer to the sticker. I also changed the support under the 6502 bearing slightly to sit better with my McMaster bearing.
