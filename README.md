@@ -1,4 +1,7 @@
-# Dome Controller Interface Board
+# Roam-A- Controller Interface Board
+
+Web installer for the Roam-A-Dome boards can be used here:
+https://reeltwo.github.io/RoamADome-Installer/
 
 https://user-images.githubusercontent.com/16616950/219066315-4543ebc8-6e04-4268-8ffb-dd80255aa0bc.mp4
 
