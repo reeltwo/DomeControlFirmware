@@ -63,3 +63,11 @@ Use these along with Mr. B's standard **Mk4** parts:
 ---
 
 **Enjoy!**
+
+---
+
+![Assembly](https://github.com/reeltwo/DomeControlFirmware/blob/main/Mounts/Mk4-Hofferth/Visual%20Aids/Photo%201%20-%20Beta%20Test%20Assembly.jpg)
+
+![Pattern](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/refs/heads/main/Mounts/Mk4-Hofferth/Visual%20Aids/Photo%202%20-%20Beta%20Test%20(PatternDisc).jpg)
+
+![Sensor](https://raw.githubusercontent.com/reeltwo/DomeControlFirmware/refs/heads/main/Mounts/Mk4-Hofferth/Visual%20Aids/Photo%203%20-%20Beta%20Test%20(SensorTray).jpg)
